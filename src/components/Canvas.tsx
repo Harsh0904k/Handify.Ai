@@ -22,6 +22,7 @@ interface CanvasProps {
   onActivate?: () => void;
   isRealistic?: boolean;
   isCharVariance?: boolean;
+  listening?: boolean;
 }
 
 const TextBlockItem = React.memo(({ 
@@ -155,6 +156,10 @@ const TextBlockItem = React.memo(({
           opacity={shapeProps.opacity || 1}
           align={shapeProps.align || 'left'}
           draggable={false}
+          perfectDrawEnabled={false}
+          shadowForStrokeEnabled={false}
+          hitStrokeWidth={0}
+          listening={isActive && !isExporting}
           sceneFunc={(context, shape) => {
             const text = shapeProps.text;
             const words = text.split(' ');
@@ -274,7 +279,8 @@ export default function Canvas({
   isActive = true,
   onActivate,
   isRealistic = false,
-  isCharVariance = false
+  isCharVariance = false,
+  listening
 }: CanvasProps) {
   const [image] = useImage(backgroundImage || '');
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -365,8 +371,8 @@ export default function Canvas({
           onTap={handleStageClick}
           ref={stageRef}
           className={!isExporting && !isActive ? 'touch-auto' : 'touch-none'}
-          pixelRatio={Math.max(2, window.devicePixelRatio || 1)}
-          listening={!isExporting}
+          pixelRatio={isExporting ? 3 : Math.min(2, window.devicePixelRatio || 1)}
+          listening={listening !== undefined ? listening : (!isExporting && isActive)}
         >
           <Layer 
             scaleX={scale} 

@@ -13,7 +13,9 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
-  ImagePlus
+  ImagePlus,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Canvas from './components/Canvas';
@@ -34,6 +36,7 @@ export default function App() {
   const [boundary, setBoundary] = useState<Boundary | null>(null);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [isLayoutLoading, setIsLayoutLoading] = useState(false);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [activePageIndex, setActivePageIndex] = useState<number | null>(null);
   const [layoutTemplate, setLayoutTemplate] = useState<Partial<TextBlock>>({
     fontSize: 96,
@@ -262,6 +265,24 @@ export default function App() {
       } as TextBlock : null);
   }, [moveMode, selectedBlocks, textBlocks, pages, layoutTemplate]);
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+      
+      if (pages.length > 1) {
+        if (e.key === 'ArrowLeft') {
+          setCurrentPageIndex(prev => Math.max(0, prev - 1));
+        } else if (e.key === 'ArrowRight') {
+          setCurrentPageIndex(prev => Math.min(pages.length - 1, prev + 1));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pages.length]);
+
   // Auto-layout logic
   useEffect(() => {
     if (!debouncedBulkText || !backgroundImage || imageDimensions.width === 0 || !debouncedBoundary) {
@@ -449,6 +470,8 @@ export default function App() {
         }
         
         setPages(allPages);
+        // Reset to first page when content changes significantly
+        setCurrentPageIndex(0);
       } catch (err) {
         console.error('Error generating pages:', err);
       } finally {
@@ -460,7 +483,7 @@ export default function App() {
   }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode === 'words']);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
+    <div className="h-screen bg-[#f8f9fa] flex flex-col overflow-hidden">
       {/* Font Preloader */}
       <div className="opacity-0 fixed -z-50 pointer-events-none" aria-hidden="true">
         {HANDWRITING_FONTS.map(font => (
@@ -556,7 +579,7 @@ export default function App() {
               <div className="relative">
                 <button 
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                  className="px-3 md:px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-bold hover:bg-zinc-800 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+                  className="px-3 md:px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-bold hover:bg-zinc-800 active:scale-95 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer touch-manipulation"
                   disabled={isExporting || !backgroundImage || (bulkText && pages.length === 0)}
                 >
                   <Download size={18} />
@@ -571,7 +594,7 @@ export default function App() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm" 
+                        className="fixed inset-0 z-[90] bg-black/40 sm:backdrop-blur-sm" 
                         onClick={() => setIsExportMenuOpen(false)}
                       />
                       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
@@ -579,6 +602,7 @@ export default function App() {
                           initial={{ opacity: 0, y: 20, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                          style={{ willChange: 'transform, opacity' }}
                           className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden pointer-events-auto"
                         >
                         <div className="p-4 border-b border-zinc-100 bg-zinc-50/50">
@@ -703,7 +727,7 @@ export default function App() {
         />
       </div>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto relative no-scrollbar lg:scrollbar-auto">
         {/* Layout Loading Overlay */}
         <AnimatePresence>
           {isLayoutLoading && (
@@ -724,7 +748,7 @@ export default function App() {
 
         {/* Left: Canvas Area */}
         <div 
-          className="flex-1 p-4 md:p-6 overflow-y-auto flex flex-col items-center gap-6 md:gap-8" 
+          className="flex-1 p-4 md:p-6 flex flex-col items-center gap-6 md:gap-8" 
           {...getRootProps()}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -736,48 +760,97 @@ export default function App() {
           <input {...getInputProps()} />
           
           {pages.length > 0 ? (
-            pages.map((pageBlocks, idx) => (
-              <div key={idx} className="w-full max-w-4xl canvas-container">
-                <div className="mb-2 flex justify-between items-center px-4">
-                  <span className="text-xs font-bold text-zinc-400 uppercase">Page {idx + 1}</span>
+            <div className="w-full flex flex-col items-center gap-6">
+              {/* Page Navigation - Mobile Only */}
+              {pages.length > 1 && (
+                <div className="flex sm:hidden items-center gap-6 bg-white px-6 py-3 rounded-2xl shadow-sm border border-zinc-200 sticky top-4 z-40">
+                  <button 
+                    onClick={() => {
+                      const nextIdx = Math.max(0, currentPageIndex - 1);
+                      setCurrentPageIndex(nextIdx);
+                      setActivePageIndex(nextIdx);
+                    }}
+                    disabled={currentPageIndex === 0}
+                    className="p-2 hover:bg-zinc-100 rounded-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 text-zinc-600"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  
+                  <div className="flex flex-col items-center min-w-[100px]">
+                    <span className="text-sm font-black text-zinc-900 tracking-tight">PAGE {currentPageIndex + 1}</span>
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">of {pages.length}</span>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      const nextIdx = Math.min(pages.length - 1, currentPageIndex + 1);
+                      setCurrentPageIndex(nextIdx);
+                      setActivePageIndex(nextIdx);
+                    }}
+                    disabled={currentPageIndex === pages.length - 1}
+                    className="p-2 hover:bg-zinc-100 rounded-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 text-zinc-600"
+                    title="Next Page"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
                 </div>
-                <Canvas 
-                  backgroundImage={backgroundImage}
-                  textBlocks={pageBlocks}
-                  selectedIds={selectedIds}
-                  isRealistic={isRealisticMode}
-                  isCharVariance={isCharVariance}
-                  onSelect={(id, multi) => {
-                    if (!id) {
-                      setSelectedIds([]);
-                      return;
-                    }
-                    if (multi) {
-                      setSelectedIds(prev => 
-                        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-                      );
-                    } else {
-                      setSelectedIds([id]);
-                    }
-                  }}
-                  onChange={(newBlocks) => {
-                    const newPages = [...pages];
-                    newPages[idx] = newBlocks;
-                    setPages(newPages);
-                  }}
-                  stageRef={(el: any) => stageRefs.current[idx] = el}
-                  margins={margins}
-                  showMargins={showMargins}
-                  boundary={boundary}
-                  onBoundaryChange={setBoundary}
-                  isCalibrating={isCalibrating}
-                  moveMode={moveMode}
-                  isExporting={isExporting}
-                  isActive={activePageIndex === idx}
-                  onActivate={() => setActivePageIndex(idx)}
-                />
+              )}
+
+              <div className="w-full max-w-4xl flex flex-col items-center gap-6 md:gap-8">
+                {pages.map((pageBlocks, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`w-full canvas-container transition-opacity duration-300 ${currentPageIndex === idx ? 'block opacity-100' : 'hidden sm:block opacity-0 sm:opacity-100'}`}
+                  >
+                    <div className="mb-3 flex justify-between items-center px-4">
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Page {idx + 1}</span>
+                      <span className="hidden sm:inline text-[10px] font-bold text-zinc-300 italic">Desktop View</span>
+                    </div>
+                    <Canvas 
+                      backgroundImage={backgroundImage}
+                      textBlocks={pageBlocks}
+                      selectedIds={selectedIds}
+                      isRealistic={isRealisticMode}
+                      isCharVariance={isCharVariance}
+                      onSelect={(id, multi) => {
+                        if (!id) {
+                          setSelectedIds([]);
+                          return;
+                        }
+                        if (multi) {
+                          setSelectedIds(prev => 
+                            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+                          );
+                        } else {
+                          setSelectedIds([id]);
+                        }
+                      }}
+                      onChange={(newBlocks) => {
+                        const newPages = [...pages];
+                        newPages[idx] = newBlocks;
+                        setPages(newPages);
+                      }}
+                      stageRef={(el: any) => stageRefs.current[idx] = el}
+                      margins={margins}
+                      showMargins={showMargins}
+                      boundary={boundary}
+                      onBoundaryChange={setBoundary}
+                      isCalibrating={isCalibrating}
+                      moveMode={moveMode}
+                      isExporting={isExporting}
+                      isActive={activePageIndex === idx}
+                      onActivate={() => {
+                        setActivePageIndex(idx);
+                        setCurrentPageIndex(idx);
+                      }}
+                      // Performance optimization: disable listening for non-visible pages on mobile
+                      listening={currentPageIndex === idx || typeof window !== 'undefined' && window.innerWidth >= 640}
+                    />
+                  </div>
+                ))}
               </div>
-            ))
+            </div>
           ) : (
               <div className="w-full max-w-4xl canvas-container">
                 <Canvas 
@@ -831,7 +904,7 @@ export default function App() {
         </div>
 
         {/* Right: Sidebar Controls */}
-        <aside className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-zinc-200 p-4 md:p-6 overflow-y-auto">
+        <aside className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-zinc-200 p-4 md:p-6">
           <div className="space-y-6 md:space-y-8">
             {/* Mode Controls */}
             <div className="space-y-4">
