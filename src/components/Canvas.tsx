@@ -160,6 +160,30 @@ const TextBlockItem = React.memo(({
           shadowForStrokeEnabled={false}
           hitStrokeWidth={0}
           listening={isActive && !isExporting}
+          hitFunc={(context, shape) => {
+            // Draw a simple rectangle for hit detection to make selection easier and more reliable
+            const fontSize = shapeProps.fontSize || 24;
+            const text = shapeProps.text;
+            const letterSpacing = shapeProps.letterSpacing || 0;
+            const wordSpacing = (shapeProps.wordSpacing || 0) * 10;
+            
+            context.font = `${fontSize}px "${shapeProps.fontFamily || 'cursive_real'}"`;
+            const words = text.split(' ');
+            let totalWidth = 0;
+            words.forEach((word, i) => {
+              for (let j = 0; j < word.length; j++) {
+                totalWidth += context.measureText(word[j]).width + letterSpacing;
+              }
+              if (i < words.length - 1) {
+                totalWidth += context.measureText(' ').width + letterSpacing + wordSpacing;
+              }
+            });
+
+            context.beginPath();
+            context.rect(0, 0, totalWidth, fontSize);
+            context.closePath();
+            context.fillStrokeShape(shape);
+          }}
           sceneFunc={(context, shape) => {
             const text = shapeProps.text;
             const words = text.split(' ');
@@ -174,6 +198,9 @@ const TextBlockItem = React.memo(({
             context.font = `${fontSize}px "${fontFamily}"`;
             context.fillStyle = fill;
             context.textBaseline = 'alphabetic';
+            
+            const baseOpacity = shape.opacity();
+            context.globalAlpha = baseOpacity;
 
             // Stable random function for character variance
             const random = (s: number) => {
@@ -231,7 +258,7 @@ const TextBlockItem = React.memo(({
                   context.rotate(charRotation);
                   context.scale(charScale, charScale);
                   context.transform(1, 0, charSkewX, 1, 0, 0); 
-                  context.globalAlpha = charOpacity;
+                  context.globalAlpha = charOpacity * baseOpacity;
                   
                   if (charStrokeWidth > 0) {
                     context.lineWidth = charStrokeWidth;
@@ -261,6 +288,40 @@ const TextBlockItem = React.memo(({
 });
 
 const INTERNAL_WIDTH = 3000;
+
+const IndividualTransformer = ({ id, isActive, isExporting, textBlocks }: { id: string, isActive: boolean, isExporting: boolean, textBlocks: TextBlock[] }) => {
+  const trRef = useRef<any>(null);
+  useEffect(() => {
+    if (trRef.current && isActive && !isExporting) {
+      const stage = trRef.current.getStage();
+      const node = stage.findOne('#' + id);
+      if (node) {
+        trRef.current.nodes([node]);
+        trRef.current.getLayer().batchDraw();
+      }
+    }
+  }, [id, isActive, isExporting, textBlocks]);
+
+  if (!isActive || isExporting) return null;
+
+  return (
+    <Transformer
+      ref={trRef}
+      rotateEnabled={true}
+      enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']}
+      anchorSize={10}
+      anchorCornerRadius={3}
+      anchorStroke="#3b82f6"
+      anchorFill="#fff"
+      borderStroke="#3b82f6"
+      borderDash={[3, 3]}
+      boundBoxFunc={(oldBox, newBox) => {
+        if (newBox.width < 5 || newBox.height < 5) return oldBox;
+        return newBox;
+      }}
+    />
+  );
+};
 
 export default function Canvas({ 
   backgroundImage, 
@@ -331,6 +392,14 @@ export default function Canvas({
               width: image.width * scale,
               height: image.height * scale
             });
+          } else if (isExporting) {
+            // Fallback for hidden pages during export to ensure they have valid dimensions
+            // Use a sensible default based on internal width to avoid "zoomed" look
+            const scale = 0.25; // Roughly 750px width
+            setDimensions({
+              width: INTERNAL_WIDTH * scale,
+              height: (INTERNAL_WIDTH * (image.height / image.width)) * scale
+            });
           }
         });
       }
@@ -367,7 +436,7 @@ export default function Canvas({
       ref={containerRef} 
       onClick={() => !isActive && !isExporting && onActivate?.()}
       className={`w-full h-full bg-zinc-200 rounded-xl overflow-hidden transition-all duration-300 flex items-center justify-center relative ${
-        !isExporting && isActive ? 'ring-4 ring-blue-500 shadow-2xl' : 'shadow-inner'
+        !isExporting && isActive ? 'sm:ring-4 sm:ring-blue-500 sm:shadow-2xl' : 'shadow-inner'
       } ${!isActive && !isExporting ? 'cursor-pointer hover:bg-zinc-300' : ''}`}
     >
       {!backgroundImage ? (
@@ -484,7 +553,7 @@ export default function Canvas({
 
             {moveMode === 'all' ? (
               <Group
-                draggable={!isExporting && isActive}
+                draggable={!isExporting && isActive && (typeof window !== 'undefined' && window.innerWidth >= 640)}
                 onDragEnd={(e) => {
                   const deltaX = e.target.x();
                   const deltaY = e.target.y();
@@ -544,21 +613,33 @@ export default function Canvas({
                   />
                 ))}
                 {selectedIds.length > 0 && !isExporting && isActive && (
-                  <Transformer
-                    ref={trRef}
-                    rotateEnabled={true}
-                    enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']}
-                    anchorSize={12}
-                    anchorCornerRadius={3}
-                    anchorStroke="#000"
-                    anchorFill="#fff"
-                    borderStroke="#000"
-                    borderDash={[3, 3]}
-                    boundBoxFunc={(oldBox, newBox) => {
-                      if (newBox.width < 5 || newBox.height < 5) return oldBox;
-                      return newBox;
-                    }}
-                  />
+                  typeof window !== 'undefined' && window.innerWidth < 640 ? (
+                    selectedIds.map(id => (
+                      <IndividualTransformer
+                        key={id}
+                        id={id}
+                        isActive={isActive}
+                        isExporting={isExporting}
+                        textBlocks={textBlocks}
+                      />
+                    ))
+                  ) : (
+                    <Transformer
+                      ref={trRef}
+                      rotateEnabled={true}
+                      enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']}
+                      anchorSize={12}
+                      anchorCornerRadius={3}
+                      anchorStroke="#000"
+                      anchorFill="#fff"
+                      borderStroke="#000"
+                      borderDash={[3, 3]}
+                      boundBoxFunc={(oldBox, newBox) => {
+                        if (newBox.width < 5 || newBox.height < 5) return oldBox;
+                        return newBox;
+                      }}
+                    />
+                  )
                 )}
               </React.Fragment>
             )}

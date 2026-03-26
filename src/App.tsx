@@ -407,7 +407,7 @@ export default function App() {
                   x: lineX,
                   y: startY,
                   width: actualLineWidth,
-                  rotation: 0,
+                  rotation: template.rotation || 0,
                 } as TextBlock);
               }
               
@@ -443,7 +443,7 @@ export default function App() {
                   x: wordX,
                   y: startY,
                   width: wWidth,
-                  rotation: 0,
+                  rotation: template.rotation || 0,
                 } as TextBlock);
                 wordX += wWidth + spaceWidth;
               });
@@ -460,7 +460,7 @@ export default function App() {
                 x: lineX,
                 y: startY,
                 width: actualLineWidth,
-                rotation: 0,
+                rotation: template.rotation || 0,
               } as TextBlock);
             }
             currentY += lineHeightPx;
@@ -815,7 +815,9 @@ export default function App() {
                 {pages.map((pageBlocks, idx) => (
                   <div 
                     key={idx} 
-                    className={`w-full canvas-container transition-opacity duration-300 ${currentPageIndex === idx ? 'block opacity-100' : 'hidden sm:block opacity-0 sm:opacity-100'}`}
+                    className={`w-full canvas-container transition-opacity duration-300 ${
+                      (currentPageIndex === idx || isExporting) ? 'block opacity-100' : 'hidden sm:block opacity-0 sm:opacity-100'
+                    }`}
                   >
                     <div className="mb-3 flex justify-between items-center px-4">
                       <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Page {idx + 1}</span>
@@ -853,7 +855,7 @@ export default function App() {
                       isCalibrating={isCalibrating}
                       moveMode={moveMode}
                       isExporting={isExporting}
-                      isActive={activePageIndex === idx}
+                      isActive={typeof window !== 'undefined' && window.innerWidth < 640 ? currentPageIndex === idx : activePageIndex === idx}
                       onActivate={() => {
                         setActivePageIndex(idx);
                         setCurrentPageIndex(idx);
@@ -867,36 +869,36 @@ export default function App() {
             </div>
           ) : (
               <div className="w-full max-w-4xl canvas-container">
-                <Canvas 
-                  backgroundImage={backgroundImage}
-                  textBlocks={textBlocks}
-                  selectedIds={selectedIds}
-                  isRealistic={isRealisticMode}
-                  onSelect={(id, multi) => {
-                    if (!id) {
-                      setSelectedIds([]);
-                      return;
-                    }
-                    if (multi) {
-                      setSelectedIds(prev => 
-                        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-                      );
-                    } else {
-                      setSelectedIds([id]);
-                    }
-                  }}
-                  onChange={setTextBlocks}
-                  stageRef={(el: any) => stageRefs.current[0] = el}
-                  margins={margins}
-                  showMargins={showMargins}
-                  boundary={boundary}
-                  onBoundaryChange={setBoundary}
-                  isCalibrating={isCalibrating}
-                  moveMode={moveMode}
-                  isExporting={isExporting}
-                  isActive={activePageIndex === 0}
-                  onActivate={() => setActivePageIndex(0)}
-                />
+                  <Canvas 
+                    backgroundImage={backgroundImage}
+                    textBlocks={textBlocks}
+                    selectedIds={selectedIds}
+                    isRealistic={isRealisticMode}
+                    onSelect={(id, multi) => {
+                      if (!id) {
+                        setSelectedIds([]);
+                        return;
+                      }
+                      if (multi) {
+                        setSelectedIds(prev => 
+                          prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+                        );
+                      } else {
+                        setSelectedIds([id]);
+                      }
+                    }}
+                    onChange={setTextBlocks}
+                    stageRef={(el: any) => stageRefs.current[0] = el}
+                    margins={margins}
+                    showMargins={showMargins}
+                    boundary={boundary}
+                    onBoundaryChange={setBoundary}
+                    isCalibrating={isCalibrating}
+                    moveMode={moveMode}
+                    isExporting={isExporting}
+                    isActive={typeof window !== 'undefined' && window.innerWidth < 640 ? true : activePageIndex === 0}
+                    onActivate={() => setActivePageIndex(0)}
+                  />
               </div>
             )}
           
@@ -1014,7 +1016,7 @@ export default function App() {
                         min="-45" 
                         max="45" 
                         value={effectiveSelectedBlock.rotation}
-                        onChange={(e) => updateSelected({ rotation: parseInt(e.target.value) })}
+                        onChange={(e) => updateSelected({ rotation: parseFloat(e.target.value) })}
                         className="w-full h-1.5 bg-zinc-100 rounded-lg appearance-none cursor-pointer accent-zinc-900"
                       />
                     </div>
