@@ -170,12 +170,12 @@ export default function App() {
   const downloadAsImage = async () => {
     setIsExporting(true);
     setIsExportMenuOpen(false);
-    // Wait for render to hide UI elements
+    // Wait for render to hide UI elements and switch to high-res mode
     setTimeout(async () => {
       const stagesToDownload = pages.length > 0 ? stageRefs.current.slice(0, pages.length) : [stageRefs.current[0]];
       for (let i = 0; i < stagesToDownload.length; i++) {
         const stage = stagesToDownload[i];
-        if (stage) {
+        if (stage && stage.width() > 0) {
           const stageWidth = stage.width();
           // Low: 1024px, Normal: 1600px, High: 2400px
           const targetWidth = exportResolution === 'low' ? 1024 : exportResolution === 'normal' ? 1600 : 2400;
@@ -194,11 +194,16 @@ export default function App() {
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Small pause between multiple pages
+          if (stagesToDownload.length > 1) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
         }
       }
+      // Finalizing phase to let UI settle
+      await new Promise(resolve => setTimeout(resolve, 500));
       setIsExporting(false);
-    }, 100);
+    }, 800);
   };
 
   const downloadAsPDF = async () => {
@@ -206,6 +211,7 @@ export default function App() {
     setIsExporting(true);
     setIsExportMenuOpen(false);
     
+    // Wait for render to hide UI elements and switch to high-res mode
     setTimeout(async () => {
       const stagesToDownload = pages.length > 0 ? stageRefs.current.slice(0, pages.length) : [stageRefs.current[0]];
       
@@ -223,7 +229,7 @@ export default function App() {
 
       for (let i = 0; i < stagesToDownload.length; i++) {
         const stage = stagesToDownload[i];
-        if (stage) {
+        if (stage && stage.width() > 0) {
           const stageWidth = stage.width();
           const pixelRatio = Math.max(1, targetWidth / stageWidth);
           
@@ -240,8 +246,10 @@ export default function App() {
       }
       
       pdf.save('handwritten-document.pdf');
+      // Finalizing phase to let UI settle
+      await new Promise(resolve => setTimeout(resolve, 500));
       setIsExporting(false);
-    }, 100);
+    }, 800);
   };
 
   const effectiveSelectedBlock = useMemo(() => {
@@ -498,7 +506,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-zinc-900/95 backdrop-blur-md flex flex-col items-center justify-center p-2 md:p-6"
+            className="fixed inset-0 z-[100] bg-zinc-900/95 sm:backdrop-blur-md flex flex-col items-center justify-center p-2 md:p-6"
           >
             <div className="w-full max-w-6xl flex flex-col gap-3 h-full max-h-[95vh]">
               <div className="flex items-center justify-between text-white px-2">
@@ -728,19 +736,25 @@ export default function App() {
       </div>
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto relative no-scrollbar lg:scrollbar-auto">
-        {/* Layout Loading Overlay */}
+        {/* Layout & Export Loading Overlay */}
         <AnimatePresence>
-          {isLayoutLoading && (
+          {(isLayoutLoading || isExporting) && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[60] bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-4"
+              className="absolute inset-0 z-[60] bg-white/80 sm:backdrop-blur-[4px] flex flex-col items-center justify-center gap-4"
             >
               <div className="w-12 h-12 border-4 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
-              <div className="flex flex-col items-center">
-                <p className="text-zinc-900 font-bold text-sm">Applying Font Layout</p>
-                <p className="text-zinc-500 text-xs">Measuring text for boundary alignment...</p>
+              <div className="flex flex-col items-center text-center px-6">
+                <p className="text-zinc-900 font-bold text-sm">
+                  {isExporting ? 'Generating High-Res Document' : 'Applying Font Layout'}
+                </p>
+                <p className="text-zinc-500 text-xs">
+                  {isExporting 
+                    ? 'This may take a moment. Please do not close the tab.' 
+                    : 'Measuring text for boundary alignment...'}
+                </p>
               </div>
             </motion.div>
           )}

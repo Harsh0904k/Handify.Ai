@@ -138,7 +138,7 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
         <button 
           onClick={() => setActiveDropdown(activeDropdown === 'font' ? null : 'font')}
           disabled={isLoading}
-          className={`flex items-center gap-2 px-3 py-2.5 hover:bg-zinc-50 rounded-lg text-sm font-medium transition-all border border-zinc-200 min-w-[140px] justify-between bg-white shadow-sm ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`flex items-center gap-2 px-3 py-2.5 hover:bg-zinc-50 rounded-lg text-sm font-medium transition-all border border-zinc-200 min-w-[140px] justify-between bg-white shadow-sm touch-manipulation cursor-pointer ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <span className="truncate max-w-[100px]" style={{ fontFamily: selectedBlock.fontFamily }}>
             {HANDWRITING_FONTS.find(f => f.value === selectedBlock.fontFamily)?.name || 'Font'}
@@ -151,49 +151,48 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
         </button>
         <AnimatePresence>
           {activeDropdown === 'font' && (
-            <>
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setActiveDropdown(null)}
-                className="fixed inset-0 z-[110] bg-black/20 backdrop-blur-[2px]"
+                className="absolute inset-0 bg-black/40"
               />
-              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div 
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                  className="w-full max-w-sm bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-auto max-h-[80vh]"
-                >
-                  <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
-                    <h3 className="font-bold text-zinc-900 text-sm">Select Font</h3>
-                    <button 
-                      onClick={() => setActiveDropdown(null)}
-                      className="p-1 hover:bg-zinc-200 rounded-full text-zinc-400 transition-colors"
+              <motion.div 
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                style={{ willChange: 'transform, opacity' }}
+                className="relative w-full max-w-sm bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-10"
+              >
+                <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
+                  <h3 className="font-bold text-zinc-900 text-sm">Select Font</h3>
+                  <button 
+                    onClick={() => setActiveDropdown(null)}
+                    className="p-1 hover:bg-zinc-200 rounded-full text-zinc-400 transition-colors"
+                  >
+                    <Plus size={20} className="rotate-45" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto p-2">
+                  {HANDWRITING_FONTS.map(font => (
+                    <button
+                      key={font.value}
+                      onClick={() => {
+                        updateSelected({ fontFamily: font.value });
+                        setActiveDropdown(null);
+                      }}
+                      className={`w-full text-left px-4 py-4 rounded-xl hover:bg-zinc-50 text-xl transition-colors flex items-center justify-between mb-1 ${selectedBlock.fontFamily === font.value ? 'bg-zinc-100 text-zinc-900 font-bold' : 'text-zinc-600'}`}
+                      style={{ fontFamily: font.value }}
                     >
-                      <Plus size={20} className="rotate-45" />
+                      <span>{font.name}</span>
+                      {selectedBlock.fontFamily === font.value && <div className="w-2 h-2 bg-zinc-900 rounded-full" />}
                     </button>
-                  </div>
-                  <div className="overflow-y-auto p-2">
-                    {HANDWRITING_FONTS.map(font => (
-                      <button
-                        key={font.value}
-                        onClick={() => {
-                          updateSelected({ fontFamily: font.value });
-                          setActiveDropdown(null);
-                        }}
-                        className={`w-full text-left px-4 py-4 rounded-xl hover:bg-zinc-50 text-xl transition-colors flex items-center justify-between mb-1 ${selectedBlock.fontFamily === font.value ? 'bg-zinc-100 text-zinc-900 font-bold' : 'text-zinc-600'}`}
-                        style={{ fontFamily: font.value }}
-                      >
-                        <span>{font.name}</span>
-                        {selectedBlock.fontFamily === font.value && <div className="w-2 h-2 bg-zinc-900 rounded-full" />}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              </div>
-            </>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>
@@ -245,7 +244,7 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
       <div className="relative shrink-0">
         <button 
           onClick={() => setActiveDropdown(activeDropdown === 'color' ? null : 'color')}
-          className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 rounded-lg transition-all border border-zinc-200 bg-white shadow-sm"
+          className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 rounded-lg transition-all border border-zinc-200 bg-white shadow-sm touch-manipulation cursor-pointer"
         >
           <div className="w-5 h-5 rounded-full border border-zinc-200 shadow-inner" style={{ backgroundColor: selectedBlock.fill }} />
           <span className="text-sm font-bold text-zinc-700">Ink</span>
@@ -253,47 +252,46 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
         </button>
         <AnimatePresence>
           {activeDropdown === 'color' && (
-            <>
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setActiveDropdown(null)}
-                className="fixed inset-0 z-[110] bg-black/20 backdrop-blur-[2px]"
+                className="absolute inset-0 bg-black/40"
               />
-              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-none">
-                <motion.div 
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                  className="w-full max-w-xs bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
-                >
-                  <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
-                    <h3 className="font-bold text-zinc-900 text-sm">Select Ink Color</h3>
-                    <button 
-                      onClick={() => setActiveDropdown(null)}
-                      className="p-1 hover:bg-zinc-200 rounded-full text-zinc-400 transition-colors"
-                    >
-                      <Plus size={20} className="rotate-45" />
-                    </button>
-                  </div>
-                  <div className="p-4 grid grid-cols-4 gap-4">
-                    {INK_COLORS.map(color => (
-                      <button
-                        key={color.value}
-                        onClick={() => {
-                          updateSelected({ fill: color.value });
-                          setActiveDropdown(null);
-                        }}
-                        className={`w-full aspect-square rounded-full border-2 transition-all ${selectedBlock.fill === color.value ? 'border-zinc-900 scale-110 shadow-lg' : 'border-transparent hover:border-zinc-200'}`}
-                        style={{ backgroundColor: color.value }}
-                        title={color.name}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              </div>
-            </>
+              <motion.div 
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                style={{ willChange: 'transform, opacity' }}
+                className="relative w-full max-w-xs bg-white border border-zinc-200 rounded-2xl shadow-2xl overflow-hidden z-10"
+              >
+                <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
+                  <h3 className="font-bold text-zinc-900 text-sm">Select Ink Color</h3>
+                  <button 
+                    onClick={() => setActiveDropdown(null)}
+                    className="p-1 hover:bg-zinc-200 rounded-full text-zinc-400 transition-colors"
+                  >
+                    <Plus size={20} className="rotate-45" />
+                  </button>
+                </div>
+                <div className="p-4 grid grid-cols-4 gap-4">
+                  {INK_COLORS.map(color => (
+                    <button
+                      key={color.value}
+                      onClick={() => {
+                        updateSelected({ fill: color.value });
+                        setActiveDropdown(null);
+                      }}
+                      className={`w-full aspect-square rounded-full border-2 transition-all ${selectedBlock.fill === color.value ? 'border-zinc-900 scale-110 shadow-lg' : 'border-transparent hover:border-zinc-200'}`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>

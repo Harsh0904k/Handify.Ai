@@ -345,7 +345,7 @@ export default function Canvas({
       window.removeEventListener('resize', updateDimensions);
       clearTimeout(timer);
     };
-  }, [image, isActive]);
+  }, [image, isActive, isExporting]);
 
   const handleStageClick = (e: any) => {
     if (isExporting) return;
@@ -382,6 +382,7 @@ export default function Canvas({
           className={!isExporting && isActive && (selectedIds.length > 0 || typeof window !== 'undefined' && window.innerWidth >= 640) ? 'touch-none' : 'touch-auto'}
           pixelRatio={isExporting ? 3 : Math.min(2, window.devicePixelRatio || 1)}
           listening={listening !== undefined ? listening : (!isExporting && isActive)}
+          preventDefault={!isExporting && isActive && (selectedIds.length > 0 || typeof window !== 'undefined' && window.innerWidth >= 640)}
         >
           <Layer 
             scaleX={scale} 
