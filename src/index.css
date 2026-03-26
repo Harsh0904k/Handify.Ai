@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Indie+Flower&family=Patrick+Hand&family=Shadows+Into+Light&display=swap');
+
+@font-face {
+  font-family: 'Cursive 2';
+  src: url('/Cursive_2.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Cursive 3';
+  src: url('/Cursive_3.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Cursive Real';
+  src: url('/Cursive_real.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'cursive_real';
+  src: url('/Cursive_real.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'GH Hughes';
+  src: url('/QEGHHughes.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'gh_hughes';
+  src: url('/QEGHHughes.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Hindi Type';
+  src: url('/Hindi_Type.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'hindi_type';
+  src: url('/Hindi_Type.ttf') format('truetype');
+}
+
+@theme {
+  --font-hand-caveat: "Caveat", cursive;
+  --font-hand-dancing: "Dancing Script", cursive;
+  --font-hand-indie: "Indie Flower", cursive;
+  --font-hand-patrick: "Patrick Hand", cursive;
+  --font-hand-shadows: "Shadows Into Light", cursive;
+  --font-cursive-2: "Cursive 2", cursive;
+  --font-cursive-3: "Cursive 3", cursive;
+  --font-cursive-real: "Cursive Real", cursive;
+  --font-gh-hughes: "GH Hughes", cursive;
+  --font-hindi-type: "Hindi Type", cursive;
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased;
+}
