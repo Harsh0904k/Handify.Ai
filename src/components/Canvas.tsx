@@ -93,7 +93,7 @@ const TextBlockItem = React.memo(({
         rotation={shapeProps.rotation + jitter.rotation}
         skewX={jitter.skewX}
         skewY={jitter.skewY}
-        draggable={draggable && !isExporting && isActive}
+        draggable={draggable && !isExporting && isActive && (isSelected || typeof window !== 'undefined' && window.innerWidth >= 640)}
         dragBoundFunc={(pos) => {
           if (!boundary) return pos;
           // Convert absolute stage position back to internal coordinates for boundary check
@@ -316,27 +316,36 @@ export default function Canvas({
   useEffect(() => {
     const updateDimensions = () => {
       if (image && containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth || 800;
-        const containerHeight = containerRef.current.offsetHeight || 600;
-        
-        const scaleX = containerWidth / image.width;
-        const scaleY = containerHeight / image.height;
-        const scale = Math.min(scaleX, scaleY);
-        
-        const newWidth = image.width * scale;
-        const newHeight = image.height * scale;
-        
-        setDimensions({
-          width: newWidth,
-          height: newHeight
+        // Use requestAnimationFrame to ensure the DOM has updated visibility/layout
+        requestAnimationFrame(() => {
+          if (!containerRef.current) return;
+          const containerWidth = containerRef.current.offsetWidth;
+          const containerHeight = containerRef.current.offsetHeight;
+          
+          if (containerWidth > 0) {
+            const scaleX = containerWidth / image.width;
+            const scaleY = containerHeight / image.height;
+            const scale = Math.min(scaleX, scaleY);
+            
+            setDimensions({
+              width: image.width * scale,
+              height: image.height * scale
+            });
+          }
         });
       }
     };
 
     updateDimensions();
+    // Add a small delay for mobile visibility transitions
+    const timer = setTimeout(updateDimensions, 100);
+
     window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, [image]);
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+      clearTimeout(timer);
+    };
+  }, [image, isActive]);
 
   const handleStageClick = (e: any) => {
     if (isExporting) return;
@@ -370,7 +379,7 @@ export default function Canvas({
           onClick={handleStageClick}
           onTap={handleStageClick}
           ref={stageRef}
-          className={!isExporting && !isActive ? 'touch-auto' : 'touch-none'}
+          className={!isExporting && isActive && (selectedIds.length > 0 || typeof window !== 'undefined' && window.innerWidth >= 640) ? 'touch-none' : 'touch-auto'}
           pixelRatio={isExporting ? 3 : Math.min(2, window.devicePixelRatio || 1)}
           listening={listening !== undefined ? listening : (!isExporting && isActive)}
         >
