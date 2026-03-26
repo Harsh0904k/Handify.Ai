@@ -37,7 +37,7 @@ export default function App() {
   const [activePageIndex, setActivePageIndex] = useState<number | null>(null);
   const [layoutTemplate, setLayoutTemplate] = useState<Partial<TextBlock>>({
     fontSize: 96,
-    fontFamily: 'Cursive Real',
+    fontFamily: 'cursive_real',
     fill: '#000066',
     lineHeight: 1.2,
     letterSpacing: 0,
@@ -55,6 +55,8 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [exportResolution, setExportResolution] = useState<'low' | 'normal' | 'high'>('normal');
+  const [isRealisticMode, setIsRealisticMode] = useState(false);
+  const [isCharVariance, setIsCharVariance] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -101,7 +103,7 @@ export default function App() {
       x: 50,
       y: 50,
       fontSize: 96,
-      fontFamily: 'Cursive Real',
+      fontFamily: 'cursive_real',
       fill: '#000066',
       rotation: 0,
       width: 1000,
@@ -129,12 +131,10 @@ export default function App() {
   }, [pages, textBlocks, selectedIds]);
 
   const updateSelected = (updates: Partial<TextBlock>) => {
-    // Only update the global layout template if we are in 'all' mode
     if (moveMode === 'all') {
+      // Update the global layout template so changes are preserved across modes
       setLayoutTemplate(prev => ({ ...prev, ...updates }));
-    }
-    
-    if (moveMode === 'all') {
+      
       // Apply updates to ALL blocks on ALL pages and the template blocks
       const updatedPages = pages.map(page => page.map(b => ({ ...b, ...updates })));
       const updatedTextBlocks = textBlocks.map(b => ({ ...b, ...updates }));
@@ -241,17 +241,26 @@ export default function App() {
     }, 100);
   };
 
-  const effectiveSelectedBlock = moveMode === 'all' 
-    ? (textBlocks[0] || pages[0]?.[0] || {
+  const effectiveSelectedBlock = useMemo(() => {
+    if (moveMode === 'all') {
+      return {
         id: 'template',
         text: '',
-        x: 0, y: 0, fontSize: 96, fontFamily: 'Caveat', fill: '#0033cc', rotation: 0, width: 800,
+        x: 0, y: 0, 
+        fontSize: 96, 
+        fontFamily: 'cursive_real', 
+        fill: '#000066', 
+        rotation: 0, 
+        width: 800,
         ...layoutTemplate
-      } as TextBlock)
-    : selectedBlocks[0] || (textBlocks.length === 0 && pages.length === 0 ? { 
-        id: 'template', text: '', x: 0, y: 0, fontSize: 96, fontFamily: 'Caveat', fill: '#0033cc', rotation: 0, width: 800,
+      } as TextBlock;
+    }
+    
+    return selectedBlocks[0] || (textBlocks.length === 0 && pages.length === 0 ? { 
+        id: 'template', text: '', x: 0, y: 0, fontSize: 96, fontFamily: 'cursive_real', fill: '#000066', rotation: 0, width: 800,
         ...layoutTemplate 
       } as TextBlock : null);
+  }, [moveMode, selectedBlocks, textBlocks, pages, layoutTemplate]);
 
   // Auto-layout logic
   useEffect(() => {
@@ -266,8 +275,8 @@ export default function App() {
       try {
         const template = {
           fontSize: 96,
-          fontFamily: 'Caveat',
-          fill: '#0033cc',
+          fontFamily: 'cursive_real',
+          fill: '#000066',
           lineHeight: 1.2,
           letterSpacing: 0,
           wordSpacing: 0,
@@ -448,7 +457,7 @@ export default function App() {
     };
 
     generatePages();
-  }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode]);
+  }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode === 'words']);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col">
@@ -502,6 +511,7 @@ export default function App() {
                   backgroundImage={backgroundImage}
                   textBlocks={[]}
                   selectedIds={[]}
+                  isRealistic={isRealisticMode}
                   onSelect={() => {}}
                   onChange={() => {}}
                   stageRef={() => {}}
@@ -597,6 +607,40 @@ export default function App() {
                           <p className="text-[10px] text-zinc-400 mt-2 italic">
                             {exportResolution === 'low' ? 'Fast export, smallest size' : exportResolution === 'normal' ? 'Balanced quality and size' : 'Best quality, optimized < 2MB'}
                           </p>
+
+                          <div className="h-px bg-zinc-100 my-4" />
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-zinc-900">Realistic Mode</span>
+                              <span className="text-[10px] text-zinc-400">Adds natural jitter & photo look</span>
+                            </div>
+                            <button 
+                              onClick={() => setIsRealisticMode(!isRealisticMode)}
+                              className={`w-10 h-5 rounded-full transition-all relative ${isRealisticMode ? 'bg-zinc-900' : 'bg-zinc-200'}`}
+                            >
+                              <motion.div 
+                                animate={{ x: isRealisticMode ? 20 : 2 }}
+                                className="absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm"
+                              />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-4">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-zinc-900">Character Variance</span>
+                              <span className="text-[10px] text-zinc-400">Makes same letters look different</span>
+                            </div>
+                            <button 
+                              onClick={() => setIsCharVariance(!isCharVariance)}
+                              className={`w-10 h-5 rounded-full transition-all relative ${isCharVariance ? 'bg-zinc-900' : 'bg-zinc-200'}`}
+                            >
+                              <motion.div 
+                                animate={{ x: isCharVariance ? 20 : 2 }}
+                                className="absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm"
+                              />
+                            </button>
+                          </div>
                         </div>
                         <div className="p-2">
                           <button 
@@ -701,6 +745,8 @@ export default function App() {
                   backgroundImage={backgroundImage}
                   textBlocks={pageBlocks}
                   selectedIds={selectedIds}
+                  isRealistic={isRealisticMode}
+                  isCharVariance={isCharVariance}
                   onSelect={(id, multi) => {
                     if (!id) {
                       setSelectedIds([]);
@@ -738,6 +784,7 @@ export default function App() {
                   backgroundImage={backgroundImage}
                   textBlocks={textBlocks}
                   selectedIds={selectedIds}
+                  isRealistic={isRealisticMode}
                   onSelect={(id, multi) => {
                     if (!id) {
                       setSelectedIds([]);

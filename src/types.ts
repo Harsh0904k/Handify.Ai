@@ -35,16 +35,11 @@ export interface TextBlock {
 }
 
 export const HANDWRITING_FONTS = [
-  { name: 'Caveat', value: 'Caveat' },
-  { name: 'Dancing Script', value: 'Dancing Script' },
-  { name: 'Indie Flower', value: 'Indie Flower' },
-  { name: 'Patrick Hand', value: 'Patrick Hand' },
-  { name: 'Shadows Into Light', value: 'Shadows Into Light' },
-  { name: 'Cursive 2', value: 'Cursive 2' },
-  { name: 'Cursive 3', value: 'Cursive 3' },
-  { name: 'Cursive Real', value: 'Cursive Real' },
-  { name: 'GH Hughes', value: 'GH Hughes' },
-  { name: 'Hindi Type', value: 'Hindi Type' },
+  { name: 'Cursive 2', value: 'cursive_2' },
+  { name: 'Cursive 3', value: 'cursive_3' },
+  { name: 'Cursive Real', value: 'cursive_real' },
+  { name: 'GH Hughes', value: 'gh_hughes' },
+  { name: 'Hindi Type', value: 'hindi_type' },
 ];
 
 export const INK_COLORS = [

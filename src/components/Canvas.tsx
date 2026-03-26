@@ -20,6 +20,8 @@ interface CanvasProps {
   isExporting?: boolean;
   isActive?: boolean;
   onActivate?: () => void;
+  isRealistic?: boolean;
+  isCharVariance?: boolean;
 }
 
 const TextBlockItem = React.memo(({ 
@@ -32,7 +34,9 @@ const TextBlockItem = React.memo(({
   draggable = true,
   scale = 1,
   isExporting = false,
-  isActive = true
+  isActive = true,
+  isRealistic = false,
+  isCharVariance = false
 }: { 
   shapeProps: TextBlock; 
   isSelected: boolean; 
@@ -44,8 +48,29 @@ const TextBlockItem = React.memo(({
   scale?: number;
   isExporting?: boolean;
   isActive?: boolean;
+  isRealistic?: boolean;
+  isCharVariance?: boolean;
 }) => {
   const shapeRef = useRef<any>(null);
+
+  // Add random jitter and skew for realistic mode
+  const jitter = React.useMemo(() => {
+    if (!isRealistic) return { x: 0, y: 0, rotation: 0, skewX: 0, skewY: 0 };
+    // Stable random based on ID
+    const seed = shapeProps.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const random = (s: number) => {
+      const x = Math.sin(s) * 10000;
+      return x - Math.floor(x);
+    };
+    
+    return {
+      x: (random(seed) - 0.5) * 2, // -1 to 1px
+      y: (random(seed + 1) - 0.5) * 2, // -1 to 1px
+      rotation: (random(seed + 2) - 0.5) * 2, // -1 to 1 deg
+      skewX: (random(seed + 3) - 0.5) * 0.03, // Subtle skew
+      skewY: (random(seed + 4) - 0.5) * 0.03, // Subtle skew
+    };
+  }, [isRealistic, shapeProps.id]);
 
   return (
     <React.Fragment>
@@ -62,9 +87,11 @@ const TextBlockItem = React.memo(({
           e.cancelBubble = true;
           onSelect(true);
         }}
-        x={shapeProps.x}
-        y={shapeProps.y}
-        rotation={shapeProps.rotation}
+        x={shapeProps.x + jitter.x}
+        y={shapeProps.y + jitter.y}
+        rotation={shapeProps.rotation + jitter.rotation}
+        skewX={jitter.skewX}
+        skewY={jitter.skewY}
         draggable={draggable && !isExporting && isActive}
         dragBoundFunc={(pos) => {
           if (!boundary) return pos;
@@ -132,7 +159,7 @@ const TextBlockItem = React.memo(({
             const text = shapeProps.text;
             const words = text.split(' ');
             const fontSize = shapeProps.fontSize || 24;
-            const fontFamily = shapeProps.fontFamily || 'Caveat';
+            const fontFamily = shapeProps.fontFamily || 'cursive_real';
             const fill = shapeProps.fill || '#000000';
             const letterSpacing = shapeProps.letterSpacing || 0;
             const wordSpacing = (shapeProps.wordSpacing || 0) * 10; // Extra pixels between words
@@ -142,6 +169,13 @@ const TextBlockItem = React.memo(({
             context.font = `${fontSize}px "${fontFamily}"`;
             context.fillStyle = fill;
             context.textBaseline = 'alphabetic';
+
+            // Stable random function for character variance
+            const random = (s: number) => {
+              const x = Math.sin(s) * 10000;
+              return x - Math.floor(x);
+            };
+            const seed = shapeProps.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
             // Calculate total width to handle alignment
             let totalWidth = 0;
@@ -162,14 +196,56 @@ const TextBlockItem = React.memo(({
             let currentX = startX;
             const spaceWidth = context.measureText(' ').width + letterSpacing + wordSpacing;
 
+            let charIndex = 0;
             words.forEach((word, i) => {
               // Draw each character for letter spacing
               for (let j = 0; j < word.length; j++) {
-                context.fillText(word[j], currentX, fontSize * 0.8); // Adjust baseline slightly for better alignment
-                currentX += context.measureText(word[j]).width + letterSpacing;
+                const char = word[j];
+                let charX = currentX;
+                let charY = fontSize * 0.8;
+                let charRotation = 0;
+                let charScale = 1;
+
+                if (isCharVariance) {
+                  const charSeed = seed + charIndex + char.charCodeAt(0);
+                  // More natural, subtle offsets
+                  charX += (random(charSeed) - 0.5) * (fontSize * 0.04); 
+                  charY += (random(charSeed + 1) - 0.5) * (fontSize * 0.04); 
+                  charRotation = (random(charSeed + 2) - 0.5) * 0.08; 
+                  charScale = 0.98 + (random(charSeed + 3) * 0.04); // Scale between 0.98 and 1.02
+                  
+                  const charSkewX = (random(charSeed + 4) - 0.5) * 0.1; 
+                  // Pressure affects opacity and stroke
+                  const pressure = random(charSeed + 5);
+                  const charOpacity = 0.75 + (pressure * 0.25); 
+                  // Very subtle stroke to vary thickness without making it look "bold"
+                  const charStrokeWidth = pressure > 0.7 ? (pressure - 0.7) * (fontSize * 0.01) : 0;
+
+                  context.save();
+                  context.translate(charX, charY);
+                  context.rotate(charRotation);
+                  context.scale(charScale, charScale);
+                  context.transform(1, 0, charSkewX, 1, 0, 0); 
+                  context.globalAlpha = charOpacity;
+                  
+                  if (charStrokeWidth > 0) {
+                    context.lineWidth = charStrokeWidth;
+                    context.strokeStyle = fill;
+                    context.strokeText(char, 0, 0);
+                  }
+                  
+                  context.fillText(char, 0, 0);
+                  context.restore();
+                } else {
+                  context.fillText(char, charX, charY);
+                }
+
+                currentX += context.measureText(char).width + letterSpacing;
+                charIndex++;
               }
               if (i < words.length - 1) {
                 currentX += spaceWidth;
+                charIndex++; // Count space as well for seed stability
               }
             });
           }}
@@ -196,12 +272,31 @@ export default function Canvas({
   moveMode = 'single',
   isExporting = false,
   isActive = true,
-  onActivate
+  onActivate,
+  isRealistic = false,
+  isCharVariance = false
 }: CanvasProps) {
   const [image] = useImage(backgroundImage || '');
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const containerRef = useRef<HTMLDivElement>(null);
   const trRef = useRef<any>(null);
+
+  // Page-level jitter for realistic mode
+  const pageJitter = React.useMemo(() => {
+    if (!isRealistic || !image) return { rotation: 0, x: 0, y: 0 };
+    // Use background image URL as seed for stable random
+    const seed = backgroundImage?.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) || 0;
+    const random = (s: number) => {
+      const x = Math.sin(s) * 10000;
+      return x - Math.floor(x);
+    };
+    
+    return {
+      rotation: (random(seed + 10) - 0.5) * 1.0, // -0.5 to 0.5 deg
+      x: (random(seed + 11) - 0.5) * 10, // -5 to 5px
+      y: (random(seed + 12) - 0.5) * 10  // -5 to 5px
+    };
+  }, [isRealistic, backgroundImage, image]);
 
   useEffect(() => {
     if (trRef.current) {
@@ -273,7 +368,19 @@ export default function Canvas({
           pixelRatio={Math.max(2, window.devicePixelRatio || 1)}
           listening={!isExporting}
         >
-          <Layer scaleX={scale} scaleY={scale}>
+          <Layer 
+            scaleX={scale} 
+            scaleY={scale}
+            rotation={pageJitter.rotation}
+            x={pageJitter.x * scale}
+            y={pageJitter.y * scale}
+            offsetX={INTERNAL_WIDTH / 2}
+            offsetY={image ? (INTERNAL_WIDTH * (image.height / image.width)) / 2 : 0}
+            position={{ 
+              x: (dimensions.width / 2) + (pageJitter.x * scale), 
+              y: (dimensions.height / 2) + (pageJitter.y * scale) 
+            }}
+          >
             {image && (
               <KonvaImage
                 image={image}
@@ -393,6 +500,8 @@ export default function Canvas({
                     scale={scale}
                     isExporting={isExporting}
                     isActive={isActive}
+                    isRealistic={isRealistic}
+                    isCharVariance={isCharVariance}
                   />
                 ))}
               </Group>
@@ -414,6 +523,8 @@ export default function Canvas({
                     scale={scale}
                     isExporting={isExporting}
                     isActive={isActive}
+                    isRealistic={isRealistic}
+                    isCharVariance={isCharVariance}
                   />
                 ))}
                 {selectedIds.length > 0 && !isExporting && isActive && (
