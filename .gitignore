@@ -12,3 +12,4 @@ firebase-applet-config.json
 .vercel
 .next
 .serverless
+src/firebase.ts

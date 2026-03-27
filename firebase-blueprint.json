@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" }
+      },
+      "required": ["uid"]
+    },
+    "feedback": {
+      "title": "Feedback",
+      "description": "User reviews and suggestions",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "User ID of the person who submitted the feedback" },
+        "email": { "type": "string", "description": "Email of the person who submitted the feedback" },
+        "content": { "type": "string", "description": "The review or suggestion content" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when feedback was submitted" },
+        "type": { "type": "string", "enum": ["review", "suggestion"], "description": "The type of feedback" }
+      },
+      "required": ["content", "createdAt", "type"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "user",
+      "description": "User documents"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "feedback",
+      "description": "User feedback collection"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - User ID
+    //   - email: string (optional) - User email
+    //   - displayName: string (optional) - User display name
+    //
+    // Collection: feedback
+    // Document ID: {feedbackId}
+    // Fields:
+    //   - uid: string (optional) - User ID of the person who submitted the feedback
+    //   - email: string (optional) - Email of the person who submitted the feedback
+    //   - content: string (required) - The review or suggestion content
+    //   - createdAt: timestamp (required) - Timestamp when feedback was submitted
+    //   - type: string (required) - The type of feedback (review, suggestion)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidFeedback(data) {
+      return data.keys().hasAll(['content', 'createdAt', 'type', 'email']) &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 2000 &&
+             data.createdAt is timestamp &&
+             data.type in ['review', 'suggestion'] &&
+             isValidEmail(data.email) &&
+             (!('uid' in data) || (isAuthenticated() && data.uid == request.auth.uid));
+    }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /feedback/{feedbackId} {
+      // Allow anyone to create feedback with valid data
+      allow create: if isValidFeedback(request.resource.data);
+      // Only admins can read all feedback (for now, let's keep it private)
+      allow read: if false; 
+    }
+  }
+}

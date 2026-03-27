@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { logAnalyticsEvent, auth, db } from './firebase';
 import { 
   Plus, 
   Download, 
@@ -15,13 +16,252 @@ import {
   ChevronDown,
   ImagePlus,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogIn,
+  LogOut,
+  MessageSquare,
+  Star,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  collection, 
+  addDoc, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  User,
+  signOut
+} from 'firebase/auth';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import { TextBlock, HANDWRITING_FONTS, INK_COLORS, Margins, Boundary, Point } from './types';
 import { useDebounce } from './hooks/useDebounce';
+
+// --- Firestore Error Handling ---
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+// --------------------------------
+
+function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => void }) {
+  const [feedback, setFeedback] = useState('');
+  const [email, setEmail] = useState(user?.email || '');
+  const [type, setType] = useState<'review' | 'suggestion'>('review');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user]);
+
+  const handleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedback.trim() || !email.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const path = 'feedback';
+      await addDoc(collection(db, path), {
+        content: feedback,
+        type,
+        createdAt: serverTimestamp(),
+        uid: user?.uid || null,
+        email: email,
+      });
+      setFeedback('');
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        onClose();
+      }, 2000);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'feedback');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-white overflow-y-auto"
+    >
+      <div className="min-h-full flex flex-col items-center justify-start md:justify-center p-6 md:p-12">
+        <button 
+          onClick={onClose}
+          className="fixed top-6 right-6 md:top-8 md:right-8 p-3 bg-zinc-100/80 backdrop-blur-md text-zinc-500 rounded-2xl hover:bg-zinc-200 transition-all z-[110]"
+        >
+          <X size={24} />
+        </button>
+
+        <div className="max-w-4xl w-full flex flex-col md:flex-row gap-12 items-start py-12 md:py-20">
+        <div className="flex-1 space-y-6">
+          <div className="w-16 h-16 bg-zinc-900 text-white rounded-3xl flex items-center justify-center shadow-2xl">
+            <MessageSquare size={32} />
+          </div>
+          <div className="space-y-4">
+            <h3 className="text-4xl font-bold text-zinc-900 tracking-tight">Review & Suggestions</h3>
+            <p className="text-lg text-zinc-500 leading-relaxed max-w-sm">
+              We're constantly evolving. Share your thoughts or suggest features you'd like to see in Handify.ai.
+            </p>
+          </div>
+          
+          {!user && (
+            <div className="space-y-4">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Or for convenience</p>
+              <button 
+                onClick={handleLogin}
+                className="flex items-center gap-3 px-8 py-4 bg-white border border-zinc-200 rounded-2xl text-base font-bold text-zinc-700 hover:bg-zinc-50 transition-all shadow-sm"
+              >
+                <LogIn size={20} />
+                Sign in with Google
+              </button>
+            </div>
+          )}
+        </div>
+        
+        <form onSubmit={handleSubmit} className="flex-[1.5] w-full space-y-8">
+          <div className="flex gap-3 p-2 bg-zinc-100 rounded-2xl w-fit">
+            {(['review', 'suggestion'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                className={`px-8 py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${type === t ? 'bg-white shadow-lg text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1">Your Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email address..."
+              className="w-full p-5 bg-zinc-50 border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none text-base transition-all"
+            />
+          </div>
+          
+          <div className="relative group">
+            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1 mb-2 block">Your Message</label>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              required
+              placeholder={type === 'review' ? "What do you think about the app?" : "What features should we add next?"}
+              className="w-full p-6 bg-zinc-50 border border-zinc-200 rounded-3xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none min-h-[200px] text-lg transition-all resize-none group-hover:border-zinc-300"
+            />
+            <AnimatePresence>
+              {submitted && (
+                <motion.div 
+                  initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                  animate={{ opacity: 1, backdropFilter: 'blur(8px)' }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-white/90 rounded-3xl flex flex-col items-center justify-center text-zinc-900 gap-4"
+                >
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-green-100"
+                  >
+                    <Star size={32} fill="currentColor" />
+                  </motion.div>
+                  <span className="font-bold text-xl">Feedback received! Thank you.</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <button
+              type="submit"
+              disabled={isSubmitting || !feedback.trim() || !email.trim()}
+              className="px-12 py-5 bg-zinc-900 text-white rounded-3xl text-lg font-bold hover:bg-zinc-800 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-zinc-200"
+            >
+              {isSubmitting ? 'Sending...' : 'Submit Feedback'}
+            </button>
+            
+            {user && (
+              <div className="flex items-center gap-4">
+                <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-full border-2 border-zinc-100" referrerPolicy="no-referrer" />
+                <button type="button" onClick={() => signOut(auth)} className="text-xs font-bold text-zinc-400 hover:text-red-500 uppercase tracking-widest transition-colors">Sign Out</button>
+              </div>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+    </motion.div>
+  );
+}
 
 export default function App() {
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
@@ -60,10 +300,27 @@ export default function App() {
   const [exportResolution, setExportResolution] = useState<'low' | 'normal' | 'high'>('normal');
   const [isRealisticMode, setIsRealisticMode] = useState(false);
   const [isCharVariance, setIsCharVariance] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    logAnalyticsEvent('app_load');
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
+      logAnalyticsEvent('image_upload', {
+        file_type: file.type,
+        file_size: file.size
+      });
       const imageUrl = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => {
@@ -168,6 +425,12 @@ export default function App() {
   };
 
   const downloadAsImage = async () => {
+    logAnalyticsEvent('download_image', {
+      resolution: exportResolution,
+      page_count: pages.length || 1,
+      realistic_mode: isRealisticMode,
+      char_variance: isCharVariance
+    });
     setIsExporting(true);
     setIsExportMenuOpen(false);
     // Wait for render to hide UI elements and switch to high-res mode
@@ -207,6 +470,12 @@ export default function App() {
   };
 
   const downloadAsPDF = async () => {
+    logAnalyticsEvent('download_pdf', {
+      resolution: exportResolution,
+      page_count: pages.length || 1,
+      realistic_mode: isRealisticMode,
+      char_variance: isCharVariance
+    });
     const { jsPDF } = await import('jspdf');
     setIsExporting(true);
     setIsExportMenuOpen(false);
@@ -648,7 +917,11 @@ export default function App() {
                               <span className="text-[10px] text-zinc-400">Adds natural jitter & photo look</span>
                             </div>
                             <button 
-                              onClick={() => setIsRealisticMode(!isRealisticMode)}
+                              onClick={() => {
+                                const newValue = !isRealisticMode;
+                                setIsRealisticMode(newValue);
+                                logAnalyticsEvent('realistic_mode_toggle', { enabled: newValue });
+                              }}
                               className={`w-10 h-5 rounded-full transition-all relative ${isRealisticMode ? 'bg-zinc-900' : 'bg-zinc-200'}`}
                             >
                               <motion.div 
@@ -664,7 +937,11 @@ export default function App() {
                               <span className="text-[10px] text-zinc-400">Makes same letters look different</span>
                             </div>
                             <button 
-                              onClick={() => setIsCharVariance(!isCharVariance)}
+                              onClick={() => {
+                                const newValue = !isCharVariance;
+                                setIsCharVariance(newValue);
+                                logAnalyticsEvent('char_variance_toggle', { enabled: newValue });
+                              }}
                               className={`w-10 h-5 rounded-full transition-all relative ${isCharVariance ? 'bg-zinc-900' : 'bg-zinc-200'}`}
                             >
                               <motion.div 
@@ -1039,6 +1316,23 @@ export default function App() {
           </div>
         </aside>
       </main>
+
+      <AnimatePresence>
+        {isFeedbackOpen && (
+          <FeedbackSection user={user} onClose={() => setIsFeedbackOpen(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Floating Feedback Button */}
+      <button 
+        onClick={() => setIsFeedbackOpen(true)}
+        className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center shadow-2xl hover:scale-110 transition-all active:scale-95 group"
+      >
+        <MessageSquare size={24} />
+        <span className="absolute right-full mr-4 px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
+          Feedback
+        </span>
+      </button>
 
       {/* Footer */}
       <footer className="bg-white border-t border-zinc-200 px-6 py-3 flex items-center justify-between text-[10px] text-zinc-400 font-medium uppercase tracking-widest">
