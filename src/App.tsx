@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useDropzone } from 'react-dropzone';
-import { logAnalyticsEvent, auth, db } from './firebase';
+import { logAnalyticsEvent, auth, db } from './firebase.ts';
 import { 
   Plus, 
   Download, 
@@ -23,7 +23,12 @@ import {
   MessageSquare,
   Star,
   X,
-  Loader2
+  Loader2,
+  HelpCircle,
+  Sparkles,
+  Monitor,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast, Toaster } from 'sonner';
@@ -266,6 +271,235 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
   );
 }
 
+function HelpSection({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-white overflow-y-auto"
+    >
+      <div className="min-h-full flex flex-col items-center p-6 md:p-12">
+        <button 
+          onClick={onClose}
+          className="fixed top-6 right-6 md:top-8 md:right-8 p-3 bg-surface-100/80 backdrop-blur-md text-surface-500 rounded-2xl hover:bg-surface-200 transition-all z-[110]"
+        >
+          <X size={24} />
+        </button>
+
+        <div className="max-w-5xl w-full py-12 md:py-20 space-y-20">
+          <div className="text-center space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-50 text-brand-600 rounded-full text-xs font-bold uppercase tracking-widest">
+              <HelpCircle size={14} />
+              User Guide
+            </div>
+            <h2 className="text-5xl md:text-7xl font-bold text-surface-900 tracking-tight">Mastering Handify.ai</h2>
+            <p className="text-xl text-surface-500 max-w-2xl mx-auto leading-relaxed">
+              Everything you need to know to create the most realistic digital handwriting ever.
+            </p>
+            <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl max-w-2xl mx-auto flex items-center gap-3 text-amber-800">
+              <div className="shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                <Monitor size={16} />
+              </div>
+              <p className="text-sm font-medium text-left">
+                <strong>Pro Tip:</strong> Use on laptop for better experience, phone version is currently under testing phase.
+              </p>
+            </div>
+          </div>
+
+          {/* Core Workflow */}
+          <section className="space-y-10">
+            <h3 className="text-3xl font-bold text-surface-900 flex items-center gap-4">
+              <span className="w-10 h-10 bg-surface-900 text-white rounded-xl flex items-center justify-center text-lg">01</span>
+              The Core Workflow
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-8 bg-surface-50 rounded-[32px] border border-surface-100 space-y-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-brand-600">
+                  <ImagePlus size={24} />
+                </div>
+                <h4 className="text-xl font-bold text-surface-900">1. Upload Paper</h4>
+                <p className="text-surface-500 text-sm leading-relaxed">
+                  Upload a photo of your notebook or any paper. The app uses this as the canvas to ensure your handwriting looks like it's actually on paper.
+                </p>
+              </div>
+              <div className="p-8 bg-surface-50 rounded-[32px] border border-surface-100 space-y-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-brand-600">
+                  <Type size={24} />
+                </div>
+                <h4 className="text-xl font-bold text-surface-900">2. Input Content</h4>
+                <p className="text-surface-500 text-sm leading-relaxed">
+                  Paste your text into the bulk editor. We automatically handle line breaks and page overflows based on your margin settings.
+                </p>
+              </div>
+              <div className="p-8 bg-surface-50 rounded-[32px] border border-surface-100 space-y-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-brand-600">
+                  <Download size={24} />
+                </div>
+                <h4 className="text-xl font-bold text-surface-900">3. Export Result</h4>
+                <p className="text-surface-500 text-sm leading-relaxed">
+                  Download as high-quality JPEG images or a multi-page PDF. Perfect for digital submissions or printing.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Detailed Controls */}
+          <section className="space-y-10">
+            <h3 className="text-3xl font-bold text-surface-900 flex items-center gap-4">
+              <span className="w-10 h-10 bg-surface-900 text-white rounded-xl flex items-center justify-center text-lg">02</span>
+              Precision Controls
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <h4 className="text-xl font-bold text-surface-900">Line & Word Spacing</h4>
+                  <p className="text-surface-500 leading-relaxed">
+                    Every notebook is different. Use the <strong>Line Height</strong> slider to align text with the lines on your paper. Use <strong>Word Spacing</strong> and <strong>Letter Spacing</strong> to mimic your natural writing rhythm.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="text-xl font-bold text-surface-900">Page Management</h4>
+                  <p className="text-surface-500 leading-relaxed">
+                    Long text? No problem. The app calculates how much text fits on one page. If it overflows, it creates a <strong>New Page</strong> automatically. You can navigate between pages using the pagination controls at the bottom.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="text-xl font-bold text-surface-900">Margins & Boundaries</h4>
+                  <p className="text-surface-500 leading-relaxed">
+                    Set the <strong>Top, Bottom, Left, and Right margins</strong> to define the writing area. This ensures text doesn't bleed off the paper or overlap with margins.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <h4 className="text-xl font-bold text-surface-900">Movement Modes</h4>
+                  <ul className="space-y-4">
+                    <li className="flex gap-4">
+                      <div className="font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded text-xs h-fit">Single</div>
+                      <p className="text-sm text-surface-500">Move one line at a time for fine adjustments.</p>
+                    </li>
+                    <li className="flex gap-4">
+                      <div className="font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded text-xs h-fit">All</div>
+                      <p className="text-sm text-surface-500">Move all lines on the current page together. Best for initial alignment.</p>
+                    </li>
+                    <li className="flex gap-4">
+                      <div className="font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded text-xs h-fit">Words</div>
+                      <p className="text-sm text-surface-500">Move individual words horizontally to create natural gaps or fix overlaps.</p>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Advanced Realism */}
+          <section className="p-12 bg-surface-900 rounded-[48px] text-white space-y-12">
+            <div className="space-y-4">
+              <h3 className="text-4xl font-bold tracking-tight">Advanced Realism Features</h3>
+              <p className="text-surface-400 text-lg">Go beyond simple fonts with our proprietary realism engine.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="space-y-4">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-brand-400">
+                  <RotateCcw size={24} className="rotate-45" />
+                </div>
+                <h4 className="text-xl font-bold">Tilt (Rotation)</h4>
+                <p className="text-surface-400 text-sm leading-relaxed">
+                  Real handwriting isn't perfectly horizontal. Use the <strong>Tilt</strong> slider to add a slight rotation to each line, making it look more natural and less "digital."
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-brand-400">
+                  <Star size={24} />
+                </div>
+                <h4 className="text-xl font-bold">Character Variance</h4>
+                <p className="text-surface-400 text-sm leading-relaxed">
+                  When enabled, this feature subtly varies the size and position of individual characters, mimicking the slight inconsistencies of human writing.
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-brand-400">
+                  <Eye size={24} />
+                </div>
+                <h4 className="text-xl font-bold">Realistic Mode</h4>
+                <p className="text-surface-400 text-sm leading-relaxed">
+                  Our ultimate filter. It adds a subtle "photo" texture, slight blurring, and lighting adjustments to make the final export look like a real photograph of a paper.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <div className="flex flex-col items-center gap-8 py-10 border-t border-surface-100">
+            <p className="text-surface-500 font-medium">Ready to create your masterpiece?</p>
+            <button 
+              onClick={onClose}
+              className="px-16 py-6 bg-brand-600 text-white rounded-[32px] font-bold text-xl hover:bg-brand-700 transition-all shadow-2xl shadow-brand-200/50 hover:scale-105 active:scale-95"
+            >
+              Start Writing Now
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function WelcomeModal({ onOpenHelp, onClose }: { onOpenHelp: () => void, onClose: () => void }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-surface-950/60 backdrop-blur-md"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className="bg-white rounded-[40px] shadow-2xl max-w-lg w-full overflow-hidden border border-surface-100"
+      >
+        <div className="p-10 md:p-12 space-y-8 text-center">
+          <div className="w-20 h-20 bg-brand-600 text-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-brand-200/50">
+            <Star size={40} fill="currentColor" />
+          </div>
+          
+          <div className="space-y-4">
+            <h2 className="text-4xl font-bold text-surface-900 tracking-tight">Welcome to Handify.ai</h2>
+            <p className="text-lg text-surface-500 leading-relaxed">
+              Transform your digital text into hyper-realistic handwriting on real paper. Ready to start?
+            </p>
+            <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3 text-amber-800 text-xs font-medium">
+              <Monitor size={14} className="shrink-0" />
+              <p className="text-left">Use on laptop for better experience, phone version is currently under testing phase.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <button 
+              onClick={onOpenHelp}
+              className="w-full py-5 bg-brand-600 text-white rounded-2xl font-bold text-lg hover:bg-brand-700 transition-all shadow-xl shadow-brand-200/30 flex items-center justify-center gap-3"
+            >
+              <HelpCircle size={24} />
+              See the Guide
+            </button>
+            <button 
+              onClick={onClose}
+              className="w-full py-5 bg-surface-100 text-surface-600 rounded-2xl font-bold text-lg hover:bg-surface-200 transition-all"
+            >
+              Skip for now
+            </button>
+          </div>
+          
+          <p className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">
+            Created with ❤️ by Flosy
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function App() {
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
@@ -303,10 +537,35 @@ export default function App() {
   const [exportResolution, setExportResolution] = useState<'low' | 'normal' | 'high'>('normal');
   const [isRealisticMode, setIsRealisticMode] = useState(false);
   const [isCharVariance, setIsCharVariance] = useState(false);
+  const [isProcessingRealism, setIsProcessingRealism] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pageOffsets, setPageOffsets] = useState<{[key: number]: Point}>({});
   const prevImageRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   // Clean up object URLs to prevent memory leaks
   useEffect(() => {
@@ -329,7 +588,19 @@ export default function App() {
 
   useEffect(() => {
     logAnalyticsEvent('app_load');
+    
+    // Show welcome popup every time for now
+    setShowWelcome(true);
   }, []);
+
+  const handleCloseWelcome = () => {
+    setShowWelcome(false);
+  };
+
+  const handleOpenHelpFromWelcome = () => {
+    setShowWelcome(false);
+    setIsHelpOpen(true);
+  };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -732,8 +1003,8 @@ export default function App() {
                     ...template,
                     id: `page-${allPages.length}-word-${currentPageBlocks.length}`,
                     text: w,
-                    x: wordX,
-                    y: startY,
+                    x: wordX + (pageOffsets[allPages.length]?.x || 0),
+                    y: startY + (pageOffsets[allPages.length]?.y || 0),
                     width: wWidth,
                     rotation: 0,
                   } as TextBlock);
@@ -749,8 +1020,8 @@ export default function App() {
                   ...template,
                   id: `page-${allPages.length}-line-${currentPageBlocks.length}`,
                   text: currentLine,
-                  x: lineX,
-                  y: startY,
+                  x: lineX + (pageOffsets[allPages.length]?.x || 0),
+                  y: startY + (pageOffsets[allPages.length]?.y || 0),
                   width: actualLineWidth,
                   rotation: template.rotation || 0,
                 } as TextBlock);
@@ -785,8 +1056,8 @@ export default function App() {
                   ...template,
                   id: `page-${allPages.length}-word-${currentPageBlocks.length}`,
                   text: w,
-                  x: wordX,
-                  y: startY,
+                  x: wordX + (pageOffsets[allPages.length]?.x || 0),
+                  y: startY + (pageOffsets[allPages.length]?.y || 0),
                   width: wWidth,
                   rotation: template.rotation || 0,
                 } as TextBlock);
@@ -802,8 +1073,8 @@ export default function App() {
                 ...template,
                 id: `page-${allPages.length}-line-${currentPageBlocks.length}`,
                 text: currentLine,
-                x: lineX,
-                y: startY,
+                x: lineX + (pageOffsets[allPages.length]?.x || 0),
+                y: startY + (pageOffsets[allPages.length]?.y || 0),
                 width: actualLineWidth,
                 rotation: template.rotation || 0,
               } as TextBlock);
@@ -833,7 +1104,7 @@ export default function App() {
     };
 
     generatePages();
-  }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode === 'words']);
+  }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode === 'words', pageOffsets]);
 
   const resetAll = () => {
     if (backgroundImage) {
@@ -844,6 +1115,7 @@ export default function App() {
     setSelectedIds([]);
     setBulkText('');
     setPages([]);
+    setPageOffsets({});
     toast.info("All progress cleared.");
   };
 
@@ -944,54 +1216,74 @@ export default function App() {
       {/* Sticky Top Bar Container */}
       <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-surface-200">
         {/* Header */}
-        <header className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between relative z-20">
+        <header className={`px-4 md:px-6 ${isFullscreen ? 'py-1.5 md:py-2' : 'py-3 md:py-4'} flex items-center justify-between relative z-20`}>
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-surface-900 rounded-xl flex items-center justify-center text-white overflow-hidden shadow-lg shadow-surface-200">
+            <div className={`${isFullscreen ? 'w-6 h-6 md:w-8 md:h-8' : 'w-8 h-8 md:w-10 md:h-10'} bg-surface-900 rounded-xl flex items-center justify-center text-white overflow-hidden shadow-lg shadow-surface-200`}>
               <img src="/logo_64.png" alt="Handify.ai Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div>
-              <h1 className="font-bold text-base md:text-lg tracking-tight text-surface-900">Handify.ai</h1>
-              <p className="text-[10px] text-surface-500 font-bold uppercase tracking-widest hidden sm:block">Realistic Handwriting Converter</p>
+              <h1 className={`font-bold ${isFullscreen ? 'text-sm md:text-base' : 'text-base md:text-lg'} tracking-tight text-surface-900`}>Handify.ai - Text to Handwriting</h1>
+              {!isFullscreen && <p className="text-[10px] text-surface-500 font-bold uppercase tracking-widest hidden sm:block">Realistic Handwriting Converter</p>}
             </div>
           </div>
 
           {/* Hidden SEO Content for Search Engines */}
           <div className="sr-only" aria-hidden="true">
-            <h2>Best Text to Handwriting Generator Online</h2>
+            <h2>The Best Text to Handwriting Converter Online</h2>
             <p>
-              Handify.ai is a free online tool that converts digital text into realistic handwriting. 
-              Whether you need to complete assignments, write letters, or create creative notes, our 
-              handwriting generator provides the most natural-looking results. 
-              Upload your own paper background, choose from various cursive fonts, and customize 
-              ink colors to match your style.
+              Handify.ai is the ultimate free online tool to convert digital text into realistic handwriting. 
+              Our text to handwriting generator is designed to create natural-looking handwritten assignments, 
+              letters, and notes with ease. If you are looking for a way to convert text to handwriting 
+              that looks real, Handify.ai is your best choice.
             </p>
+            <h3>Key Features of our Text to Handwriting Tool:</h3>
             <ul>
-              <li>Realistic Cursive Handwriting Fonts</li>
-              <li>Custom Paper Background Upload</li>
-              <li>Adjustable Line Height and Letter Spacing</li>
-              <li>Export as High-Quality PDF or Image</li>
-              <li>Free to use with no registration required</li>
+              <li>Convert text to handwriting with realistic cursive fonts.</li>
+              <li>Upload custom paper backgrounds for a truly authentic look.</li>
+              <li>Adjustable margins, line height, and letter spacing for perfect alignment.</li>
+              <li>Export your text to handwriting results as high-quality PDF or Image.</li>
+              <li>Completely free text to handwriting converter with no registration required.</li>
+              <li>Support for multiple ink colors including blue, black, and red.</li>
             </ul>
+            <p>
+              Whether you are a student needing a text to handwriting tool for assignments or 
+              someone who wants to send a personal handwritten letter, Handify.ai makes the 
+              process simple and fast. Try our text to handwriting converter today!
+            </p>
           </div>
           
             <div className="flex gap-2">
               <div className="relative">
                 <button 
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                  className="px-3 md:px-5 py-2 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-100 flex items-center gap-2 disabled:opacity-50 cursor-pointer touch-manipulation"
+                  className={`${isFullscreen ? 'px-2 md:px-3 py-1.5' : 'px-3 md:px-5 py-2'} bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-100 flex items-center gap-2 disabled:opacity-50 cursor-pointer touch-manipulation`}
                   disabled={isExporting || !backgroundImage || (bulkText && pages.length === 0)}
                 >
-                  <Download size={18} />
-                  {isExporting ? 'Processing...' : (pages.length > 0 ? `Export ${pages.length}` : 'Export')}
-                  <ChevronDown size={16} className={`transition-transform duration-300 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                  <Download size={isFullscreen ? 16 : 18} />
+                  {isExporting ? 'Processing...' : (pages.length > 0 ? (isFullscreen ? pages.length : `Export ${pages.length}`) : 'Export')}
+                  <ChevronDown size={14} className={`transition-transform duration-300 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
               </div>
               <button 
+                onClick={() => setIsHelpOpen(true)}
+                className={`${isFullscreen ? 'p-1.5' : 'p-2.5'} hover:bg-surface-100 rounded-xl text-surface-500 transition-colors`}
+                title="Help"
+              >
+                <HelpCircle size={isFullscreen ? 16 : 18} />
+              </button>
+              <button 
+                onClick={toggleFullscreen}
+                className={`hidden lg:flex ${isFullscreen ? 'p-1.5' : 'p-2.5'} hover:bg-surface-100 rounded-xl text-surface-500 transition-colors`}
+                title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+              >
+                {isFullscreen ? <Minimize size={isFullscreen ? 16 : 18} /> : <Maximize size={isFullscreen ? 16 : 18} />}
+              </button>
+              <button 
                 onClick={resetAll}
-                className="p-2.5 hover:bg-surface-100 rounded-xl text-surface-500 transition-colors"
+                className={`${isFullscreen ? 'p-1.5' : 'p-2.5'} hover:bg-surface-100 rounded-xl text-surface-500 transition-colors`}
                 title="Reset"
               >
-                <RotateCcw size={18} />
+                <RotateCcw size={isFullscreen ? 16 : 18} />
               </button>
             </div>
         </header>
@@ -1005,11 +1297,12 @@ export default function App() {
             setSelectedIds([]); // Clear selection when mode changes as IDs will likely change
           }}
           isLoading={isLayoutLoading}
+          isFullscreen={isFullscreen}
           className="relative z-10"
         />
       </div>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto overflow-x-hidden relative lg:scrollbar-auto">
+      <main className={`flex-1 flex flex-col lg:flex-row ${isFullscreen ? 'overflow-hidden' : 'overflow-y-auto lg:overflow-hidden overflow-x-hidden'} relative lg:scrollbar-auto`}>
         {/* Layout & Export Loading Overlay */}
         <AnimatePresence>
           {(isLayoutLoading || isExporting) && (
@@ -1041,7 +1334,7 @@ export default function App() {
 
         {/* Left: Canvas Area */}
         <div 
-          className="flex-1 p-4 md:p-6 flex flex-col items-center gap-6 md:gap-8" 
+          className={`flex-1 ${isFullscreen ? 'p-2 md:p-4 overflow-y-auto' : 'p-4 md:p-6 lg:overflow-y-auto'} flex flex-col items-center ${isFullscreen ? 'gap-4' : 'gap-6 md:gap-8'}`} 
           {...getRootProps()}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -1121,10 +1414,20 @@ export default function App() {
                           setSelectedIds([id]);
                         }
                       }}
-                      onChange={(newBlocks) => {
+                      onChange={(newBlocks, delta) => {
                         const newPages = [...pages];
                         newPages[idx] = newBlocks;
                         setPages(newPages);
+                        
+                        if (delta) {
+                          setPageOffsets(prev => ({
+                            ...prev,
+                            [idx]: {
+                              x: (prev[idx]?.x || 0) + delta.x,
+                              y: (prev[idx]?.y || 0) + delta.y
+                            }
+                          }));
+                        }
                       }}
                       stageRef={(el: any) => stageRefs.current[idx] = el}
                       margins={margins}
@@ -1199,22 +1502,22 @@ export default function App() {
         </div>
 
         {/* Right: Sidebar Controls */}
-        <aside className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-surface-200 p-4 md:p-6">
-          <div className="space-y-6 md:space-y-8">
+        <aside className={`w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-surface-200 ${isFullscreen ? 'p-3 md:p-4 overflow-y-auto' : 'p-4 md:p-6 lg:overflow-y-auto'}`}>
+          <div className={`${isFullscreen ? 'space-y-4 md:space-y-5' : 'space-y-6 md:space-y-8'}`}>
             {/* Mode Controls */}
-            <div className="space-y-4">
+            <div className={`${isFullscreen ? 'space-y-2' : 'space-y-4'}`}>
               {backgroundImage && (
                 <div className="grid grid-cols-1 gap-2">
                   <button 
                     onClick={() => setIsCalibrating(true)}
-                    className="flex items-center justify-center gap-2 py-3 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-200/50"
+                    className={`flex items-center justify-center gap-2 ${isFullscreen ? 'py-2' : 'py-3'} bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-200/50`}
                   >
                     <Layout size={16} />
                     <span>Calibrate Page Boundary</span>
                   </button>
                   <button 
                     onClick={open}
-                    className="flex items-center justify-center gap-2 py-3 bg-white border border-surface-200 text-surface-900 rounded-xl text-xs font-bold hover:bg-surface-50 transition-all shadow-sm"
+                    className={`flex items-center justify-center gap-2 ${isFullscreen ? 'py-2' : 'py-3'} bg-white border border-surface-200 text-surface-900 rounded-xl text-xs font-bold hover:bg-surface-50 transition-all shadow-sm`}
                   >
                     <ImagePlus size={16} />
                     <span>Change Background</span>
@@ -1223,14 +1526,14 @@ export default function App() {
               )}
             </div>
 
-            <div className="space-y-4 md:space-y-6">
+            <div className={`${isFullscreen ? 'space-y-3 md:space-y-4' : 'space-y-4 md:space-y-6'}`}>
               {/* Bulk Text Input */}
               <div className="space-y-2">
                 <label className="text-[10px] md:text-xs font-bold text-surface-400 uppercase tracking-wider">Bulk Content</label>
                 <textarea 
                   value={bulkText}
                   onChange={(e) => setBulkText(e.target.value)}
-                  className="w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none min-h-[120px] md:min-h-[200px] text-sm"
+                  className={`w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none ${isFullscreen ? 'min-h-[100px] md:min-h-[150px]' : 'min-h-[120px] md:min-h-[200px]'} text-sm`}
                   placeholder="Paste your long text here..."
                 />
               </div>
@@ -1242,7 +1545,7 @@ export default function App() {
                 <button 
                   onClick={addTextBlock}
                   disabled={!backgroundImage}
-                  className="flex items-center justify-center gap-2 bg-brand-600 text-white p-2.5 md:p-3 rounded-xl text-sm font-medium hover:bg-brand-700 transition-all disabled:opacity-50 shadow-lg shadow-brand-200/30"
+                  className={`flex items-center justify-center gap-2 bg-brand-600 text-white ${isFullscreen ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} rounded-xl text-sm font-medium hover:bg-brand-700 transition-all disabled:opacity-50 shadow-lg shadow-brand-200/30`}
                 >
                   <Plus size={18} />
                   <span>Add Text</span>
@@ -1250,7 +1553,7 @@ export default function App() {
                 <button 
                   onClick={deleteSelected}
                   disabled={selectedIds.length === 0}
-                  className="flex items-center justify-center gap-2 bg-surface-100 text-surface-600 p-2.5 md:p-3 rounded-xl text-sm font-medium hover:bg-surface-200 transition-all disabled:opacity-50"
+                  className={`flex items-center justify-center gap-2 bg-surface-100 text-surface-600 ${isFullscreen ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} rounded-xl text-sm font-medium hover:bg-surface-200 transition-all disabled:opacity-50`}
                 >
                   <Trash2 size={18} />
                   <span>Delete</span>
@@ -1264,7 +1567,7 @@ export default function App() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="space-y-6"
+                    className={`${isFullscreen ? 'space-y-4' : 'space-y-6'}`}
                   >
                     <div className="h-px bg-surface-100" />
                     
@@ -1274,7 +1577,7 @@ export default function App() {
                       <textarea 
                         value={effectiveSelectedBlock.text}
                         onChange={(e) => updateSelected({ text: e.target.value })}
-                        className="w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none min-h-[150px] text-sm"
+                        className={`w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none ${isFullscreen ? 'min-h-[100px]' : 'min-h-[150px]'} text-sm`}
                         placeholder="Type your handwritten text..."
                       />
                       {selectedIds.length > 1 && (
@@ -1307,7 +1610,7 @@ export default function App() {
                     key="empty"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-center py-12"
+                    className={`text-center ${isFullscreen ? 'py-6' : 'py-12'}`}
                   >
                     <div className="w-12 h-12 bg-surface-50 rounded-full flex items-center justify-center mx-auto mb-3 text-surface-300">
                       <Type size={20} />
@@ -1324,6 +1627,15 @@ export default function App() {
       <AnimatePresence>
         {isFeedbackOpen && (
           <FeedbackSection user={user} onClose={() => setIsFeedbackOpen(false)} />
+        )}
+        {isHelpOpen && (
+          <HelpSection onClose={() => setIsHelpOpen(false)} />
+        )}
+        {showWelcome && (
+          <WelcomeModal 
+            onOpenHelp={handleOpenHelpFromWelcome} 
+            onClose={handleCloseWelcome} 
+          />
         )}
       </AnimatePresence>
 
@@ -1346,6 +1658,29 @@ export default function App() {
                 style={{ willChange: 'transform, opacity' }}
                 className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-surface-100 overflow-hidden z-10"
               >
+                {/* Processing Overlay */}
+                <AnimatePresence>
+                  {isProcessingRealism && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 z-50 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center gap-4"
+                    >
+                      <div className="relative">
+                        <div className="w-12 h-12 border-4 border-brand-100 border-t-brand-600 rounded-full animate-spin" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Sparkles className="text-brand-600 animate-pulse" size={20} />
+                        </div>
+                      </div>
+                      <div className="text-center px-6">
+                        <h3 className="text-base font-bold text-surface-900">Applying Realism</h3>
+                        <p className="text-xs text-surface-500 font-medium">Perfecting your handwriting look...</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <div className="p-5 border-b border-surface-100 bg-surface-50/50">
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="font-bold text-surface-900 text-lg">Export Options</h3>
@@ -1383,7 +1718,11 @@ export default function App() {
                     <button 
                       onClick={() => {
                         const newValue = !isRealisticMode;
-                        setIsRealisticMode(newValue);
+                        setIsProcessingRealism(true);
+                        setTimeout(() => {
+                          setIsRealisticMode(newValue);
+                          setIsProcessingRealism(false);
+                        }, 600);
                         logAnalyticsEvent('realistic_mode_toggle', { enabled: newValue });
                       }}
                       className={`w-11 h-6 rounded-full transition-all relative ${isRealisticMode ? 'bg-brand-600' : 'bg-surface-200'}`}
@@ -1403,7 +1742,11 @@ export default function App() {
                     <button 
                       onClick={() => {
                         const newValue = !isCharVariance;
-                        setIsCharVariance(newValue);
+                        setIsProcessingRealism(true);
+                        setTimeout(() => {
+                          setIsCharVariance(newValue);
+                          setIsProcessingRealism(false);
+                        }, 600);
                         logAnalyticsEvent('char_variance_toggle', { enabled: newValue });
                       }}
                       className={`w-11 h-6 rounded-full transition-all relative ${isCharVariance ? 'bg-brand-600' : 'bg-surface-200'}`}
@@ -1461,8 +1804,12 @@ export default function App() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-surface-200 px-6 py-3 flex items-center justify-between text-[10px] text-surface-400 font-medium uppercase tracking-widest">
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           <span>© 2026 Handify.ai</span>
+          <span className="hidden sm:inline">•</span>
+          <a href="https://flosy-global.web.app/" target="_blank" rel="noopener noreferrer" className="hover:text-brand-600 transition-colors">Created by Flosy</a>
+        </div>
+        <div className="flex gap-4">
           <span>Privacy</span>
           <span>Terms</span>
         </div>

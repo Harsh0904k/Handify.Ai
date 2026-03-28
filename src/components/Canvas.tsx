@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Stage, Layer, Image as KonvaImage, Text, Transformer, Rect, Circle, Line, Group } from 'react-konva';
 import useImage from 'use-image';
+import Konva from 'konva';
 import { TextBlock, Margins, Boundary, Point } from '../types';
 
 interface CanvasProps {
@@ -8,7 +9,7 @@ interface CanvasProps {
   textBlocks: TextBlock[];
   selectedIds: string[];
   onSelect: (id: string | null, multi?: boolean) => void;
-  onChange: (blocks: TextBlock[]) => void;
+  onChange: (blocks: TextBlock[], delta?: Point) => void;
   stageRef: any;
   margins?: Margins;
   showMargins?: boolean;
@@ -53,6 +54,38 @@ const TextBlockItem = React.memo(({
   isCharVariance?: boolean;
 }) => {
   const shapeRef = useRef<any>(null);
+  const textRef = useRef<any>(null);
+
+  // Cache the text node when realistic mode or character variance is on
+  useEffect(() => {
+    if ((isRealistic || isCharVariance) && textRef.current && !isSelected) {
+      // Use a small timeout to ensure the font is loaded and rendered before caching
+      const timer = setTimeout(() => {
+        if (textRef.current) {
+          try {
+            // Calculate cache size based on font size and text length
+            // We need a bit of padding for jitter/variance
+            const padding = shapeProps.fontSize * 0.5;
+            textRef.current.cache({
+              offset: padding / 2,
+              pixelRatio: 2, // Higher quality for text
+            });
+            textRef.current.getLayer()?.batchDraw();
+          } catch (e) {
+            console.warn('Failed to cache text node:', e);
+          }
+        }
+      }, 100);
+      return () => {
+        clearTimeout(timer);
+        if (textRef.current) {
+          textRef.current.clearCache();
+        }
+      };
+    } else if (textRef.current) {
+      textRef.current.clearCache();
+    }
+  }, [isRealistic, isCharVariance, isSelected, shapeProps.text, shapeProps.fontSize, shapeProps.fontFamily, shapeProps.fill, shapeProps.letterSpacing, shapeProps.wordSpacing, shapeProps.align, shapeProps.width]);
 
   // Add random jitter and skew for realistic mode
   const jitter = React.useMemo(() => {
@@ -147,6 +180,7 @@ const TextBlockItem = React.memo(({
       >
         <Text
           {...shapeProps}
+          ref={textRef}
           id={shapeProps.id + '-text'}
           x={0}
           y={0}
@@ -251,7 +285,7 @@ const TextBlockItem = React.memo(({
                   const pressure = random(charSeed + 5);
                   const charOpacity = 0.75 + (pressure * 0.25); 
                   // Very subtle stroke to vary thickness without making it look "bold"
-                  const charStrokeWidth = pressure > 0.7 ? (pressure - 0.7) * (fontSize * 0.01) : 0;
+                  const charStrokeWidth = pressure > 0.7 ? (pressure - 0.7) * (fontSize * 0.015) : 0;
 
                   context.save();
                   context.translate(charX, charY);
@@ -260,16 +294,62 @@ const TextBlockItem = React.memo(({
                   context.transform(1, 0, charSkewX, 1, 0, 0); 
                   context.globalAlpha = charOpacity * baseOpacity;
                   
+                  // Ink bleed effect - subtle shadow
+                  if (isRealistic) {
+                    context.shadowColor = fill;
+                    context.shadowBlur = fontSize * (0.01 + pressure * 0.02);
+                    context.shadowOffsetX = 0;
+                    context.shadowOffsetY = 0;
+
+                    // Color jitter for ink
+                    const colorSeed = charSeed + 10;
+                    const r = parseInt(fill.slice(1, 3), 16);
+                    const g = parseInt(fill.slice(3, 5), 16);
+                    const b = parseInt(fill.slice(5, 7), 16);
+                    const offset = (random(colorSeed) - 0.5) * 20; // Increased jitter
+                    context.fillStyle = `rgb(${Math.max(0, Math.min(255, r + offset))}, ${Math.max(0, Math.min(255, g + offset))}, ${Math.max(0, Math.min(255, b + offset))})`;
+                    
+                    // Smudge effect - very subtle
+                    context.save();
+                    context.globalAlpha = 0.04 * baseOpacity;
+                    context.fillText(char, 0.4, 0.4);
+                    context.fillText(char, -0.4, -0.4);
+                    context.restore();
+                  }
+
                   if (charStrokeWidth > 0) {
                     context.lineWidth = charStrokeWidth;
-                    context.strokeStyle = fill;
+                    context.strokeStyle = context.fillStyle;
                     context.strokeText(char, 0, 0);
                   }
                   
                   context.fillText(char, 0, 0);
+                  
+                  // Add a second pass with slightly different offset for "ink flow"
+                  if (isRealistic && pressure > 0.6) {
+                    context.globalAlpha = (pressure - 0.6) * 0.3 * baseOpacity;
+                    context.fillText(char, 0.2, 0.2);
+                  }
+
                   context.restore();
                 } else {
-                  context.fillText(char, charX, charY);
+                  if (isRealistic) {
+                    const charSeed = seed + charIndex + char.charCodeAt(0);
+                    const pressure = random(charSeed + 5);
+                    
+                    context.save();
+                    context.translate(charX, charY);
+                    
+                    // Subtle ink bleed even without variance
+                    context.shadowColor = fill;
+                    context.shadowBlur = fontSize * 0.01;
+                    context.globalAlpha = (0.8 + pressure * 0.2) * baseOpacity;
+                    
+                    context.fillText(char, 0, 0);
+                    context.restore();
+                  } else {
+                    context.fillText(char, charX, charY);
+                  }
                 }
 
                 currentX += context.measureText(char).width + letterSpacing;
@@ -359,9 +439,9 @@ export default function Canvas({
     };
     
     return {
-      rotation: (random(seed + 10) - 0.5) * 1.0, // -0.5 to 0.5 deg
-      x: (random(seed + 11) - 0.5) * 10, // -5 to 5px
-      y: (random(seed + 12) - 0.5) * 10  // -5 to 5px
+      rotation: (random(seed + 10) - 0.5) * 1.5, // Increased rotation jitter
+      x: (random(seed + 11) - 0.5) * 15, // Increased x jitter
+      y: (random(seed + 12) - 0.5) * 15  // Increased y jitter
     };
   }, [isRealistic, backgroundImage, image]);
 
@@ -430,6 +510,53 @@ export default function Canvas({
   };
 
   const scale = dimensions.width > 0 ? dimensions.width / INTERNAL_WIDTH : 1;
+
+  // Generate a stable noise pattern for realistic mode
+  const noisePattern = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    
+    const imageData = ctx.createImageData(256, 256);
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const val = 200 + Math.random() * 55;
+      data[i] = val;
+      data[i + 1] = val;
+      data[i + 2] = val;
+      data[i + 3] = 10; // Very low opacity noise
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    // Add subtle paper fibers
+    ctx.strokeStyle = 'rgba(0,0,0,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < 40; i++) {
+      ctx.beginPath();
+      const x = Math.random() * 256;
+      const y = Math.random() * 256;
+      ctx.moveTo(x, y);
+      const len = 2 + Math.random() * 8;
+      const angle = Math.random() * Math.PI * 2;
+      ctx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len);
+      ctx.stroke();
+    }
+
+    // Add pulp dots (dust/pulp)
+    ctx.fillStyle = 'rgba(0,0,0,0.02)';
+    for (let i = 0; i < 80; i++) {
+      const x = Math.random() * 256;
+      const y = Math.random() * 256;
+      const r = Math.random() * 0.6;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return canvas;
+  }, []);
 
   return (
     <div 
@@ -565,7 +692,7 @@ export default function Canvas({
                   // Reset group position to 0,0 so blocks stay in sync with absolute stage state
                   e.target.x(0);
                   e.target.y(0);
-                  onChange(newBlocks);
+                  onChange(newBlocks, { x: deltaX, y: deltaY });
                 }}
               >
                 {textBlocks.map((block, i) => (
@@ -642,6 +769,46 @@ export default function Canvas({
                   )
                 )}
               </React.Fragment>
+            )}
+            
+            {isRealistic && noisePattern && (
+              <Rect
+                width={INTERNAL_WIDTH}
+                height={image ? INTERNAL_WIDTH * (image.height / image.width) : 1000}
+                fillPatternImage={noisePattern as any}
+                fillPatternRepeat="repeat"
+                opacity={0.6}
+                listening={false}
+                perfectDrawEnabled={false}
+              />
+            )}
+
+            {isRealistic && (
+              <Rect
+                width={INTERNAL_WIDTH}
+                height={image ? INTERNAL_WIDTH * (image.height / image.width) : 1000}
+                fillRadialGradientStartPoint={{ x: INTERNAL_WIDTH / 2, y: INTERNAL_WIDTH / 4 }}
+                fillRadialGradientStartRadius={0}
+                fillRadialGradientEndPoint={{ x: INTERNAL_WIDTH / 2, y: INTERNAL_WIDTH / 4 }}
+                fillRadialGradientEndRadius={INTERNAL_WIDTH * 1.2}
+                fillRadialGradientColorStops={[
+                  0, 'rgba(255, 252, 240, 0.08)', 
+                  0.5, 'rgba(255, 255, 255, 0)', 
+                  1, 'rgba(0, 0, 0, 0.18)'
+                ]}
+                listening={false}
+                perfectDrawEnabled={false}
+              />
+            )}
+
+            {isRealistic && (
+              <Rect
+                width={INTERNAL_WIDTH}
+                height={image ? INTERNAL_WIDTH * (image.height / image.width) : 1000}
+                fill="rgba(255, 245, 220, 0.03)"
+                listening={false}
+                perfectDrawEnabled={false}
+              />
             )}
           </Layer>
         </Stage>

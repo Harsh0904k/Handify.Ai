@@ -20,6 +20,7 @@ interface ToolbarProps {
   moveMode: 'single' | 'all' | 'words';
   setMoveMode: (mode: 'single' | 'all' | 'words') => void;
   isLoading?: boolean;
+  isFullscreen?: boolean;
   className?: string;
 }
 
@@ -31,7 +32,8 @@ const SliderControl = ({
   step, 
   onChange, 
   onReset,
-  unit = "" 
+  unit = "",
+  isFullscreen
 }: { 
   label: string; 
   value: number; 
@@ -41,18 +43,19 @@ const SliderControl = ({
   onChange: (val: number) => void;
   onReset: () => void;
   unit?: string;
+  isFullscreen?: boolean;
 }) => (
-  <div className="flex flex-col gap-1.5 min-w-[110px]">
+  <div className={`flex flex-col gap-1 ${isFullscreen ? 'min-w-[90px]' : 'min-w-[110px]'}`}>
     <div className="flex items-center justify-between">
-      <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[10px] font-mono font-bold text-surface-600 bg-surface-50 px-1.5 py-0.5 rounded border border-surface-100">{value.toFixed(1)}{unit}</span>
+      <span className="text-[9px] font-bold text-surface-400 uppercase tracking-widest">{label}</span>
+      <div className="flex items-center gap-1">
+        <span className="text-[9px] font-mono font-bold text-surface-600 bg-surface-50 px-1 py-0.5 rounded border border-surface-100">{value.toFixed(1)}{unit}</span>
         <button 
           onClick={onReset}
-          className="p-1 hover:bg-surface-100 rounded-md text-surface-300 hover:text-brand-600 transition-colors"
+          className="p-0.5 hover:bg-surface-100 rounded-md text-surface-300 hover:text-brand-600 transition-colors"
           title={`Reset ${label}`}
         >
-          <RotateCcw size={10} />
+          <RotateCcw size={8} />
         </button>
       </div>
     </div>
@@ -62,12 +65,12 @@ const SliderControl = ({
       onChange={(e) => onChange(parseFloat(e.target.value))}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
-      className="w-full h-4 sm:h-2 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-[#2563eb] hover:accent-[#1d4ed8] transition-all touch-none"
+      className={`w-full h-3 sm:h-1.5 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-[#2563eb] hover:accent-[#1d4ed8] transition-all touch-none`}
     />
   </div>
 );
 
-export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMoveMode, isLoading, className }: ToolbarProps) {
+export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMoveMode, isLoading, isFullscreen, className }: ToolbarProps) {
   const [activeDropdown, setActiveDropdown] = React.useState<'font' | 'color' | null>(null);
   const [isMobile, setIsMobile] = React.useState(false);
   const fontButtonRef = React.useRef<HTMLButtonElement>(null);
@@ -133,8 +136,8 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
   );
 
   return (
-    <div className={`min-h-[4rem] h-auto bg-white/80 backdrop-blur-md border-b border-surface-200 shadow-sm relative z-[100] ${className || ''}`}>
-      <div className="flex items-center px-4 gap-4 py-2 overflow-x-auto scroll-smooth w-full h-full">
+    <div className={`${isFullscreen ? 'min-h-[3.5rem]' : 'min-h-[4rem]'} h-auto bg-white/80 backdrop-blur-md border-b border-surface-200 shadow-sm relative z-[100] ${className || ''}`}>
+      <div className={`flex items-center px-4 ${isFullscreen ? 'gap-3' : 'gap-4'} py-2 overflow-x-auto scroll-smooth w-full h-full`}>
         {/* Movement Mode Toggle */}
         <div className="flex items-center gap-1 bg-surface-100 border border-surface-200 rounded-xl p-1 shrink-0 shadow-inner">
         <button 
@@ -146,21 +149,21 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
         </button>
         <button 
           onClick={() => setMoveMode('words')}
-          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all min-w-[60px] ${moveMode === 'words' ? 'bg-white shadow-md text-brand-600' : 'text-surface-500 hover:text-surface-700'}`}
+          className={`${isFullscreen ? 'px-3 py-1.5' : 'px-4 py-2'} rounded-lg text-[10px] font-bold uppercase transition-all min-w-[50px] ${moveMode === 'words' ? 'bg-white shadow-md text-brand-600' : 'text-surface-500 hover:text-surface-700'}`}
           title="Move individual words"
         >
           Words
         </button>
         <button 
           onClick={() => setMoveMode('all')}
-          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all min-w-[60px] ${moveMode === 'all' ? 'bg-white shadow-md text-brand-600' : 'text-surface-500 hover:text-surface-700'}`}
+          className={`${isFullscreen ? 'px-3 py-1.5' : 'px-4 py-2'} rounded-lg text-[10px] font-bold uppercase transition-all min-w-[50px] ${moveMode === 'all' ? 'bg-white shadow-md text-brand-600' : 'text-surface-500 hover:text-surface-700'}`}
           title="Move all lines together"
         >
           Page
         </button>
       </div>
 
-      <div className="w-px h-8 bg-surface-200 mx-1 shrink-0" />
+      <div className={`w-px ${isFullscreen ? 'h-6' : 'h-8'} bg-surface-200 mx-1 shrink-0`} />
 
       {/* Font Family */}
       <div className="relative shrink-0">
@@ -168,9 +171,9 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
           ref={fontButtonRef}
           onClick={() => setActiveDropdown(activeDropdown === 'font' ? null : 'font')}
           disabled={isLoading}
-          className={`flex items-center gap-3 px-4 py-3 hover:bg-surface-50 rounded-xl text-sm font-bold transition-all border border-surface-200 min-w-[160px] justify-between bg-white shadow-sm touch-manipulation cursor-pointer ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`flex items-center gap-2 ${isFullscreen ? 'px-3 py-2' : 'px-4 py-3'} hover:bg-surface-50 rounded-xl text-sm font-bold transition-all border border-surface-200 ${isFullscreen ? 'min-w-[130px]' : 'min-w-[160px]'} justify-between bg-white shadow-sm touch-manipulation cursor-pointer ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          <span className="truncate max-w-[110px]" style={{ fontFamily: selectedBlock.fontFamily }}>
+          <span className={`${isFullscreen ? 'max-w-[90px]' : 'max-w-[110px]'} truncate`} style={{ fontFamily: selectedBlock.fontFamily }}>
             {HANDWRITING_FONTS.find(f => f.value === selectedBlock.fontFamily)?.name || 'Font'}
           </span>
           {isLoading ? (
@@ -259,31 +262,31 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
       </div>
 
       {/* Font Size */}
-      <div className="flex items-center gap-1 bg-surface-50 border border-surface-200 rounded-xl p-1 shadow-sm shrink-0">
+      <div className={`flex items-center bg-surface-50 border border-surface-200 rounded-xl ${isFullscreen ? 'p-0.5' : 'p-1'} shadow-sm shrink-0`}>
         <button 
           onClick={() => updateSelected({ fontSize: Math.max(8, selectedBlock.fontSize - 2) })}
-          className="p-2.5 hover:bg-white hover:shadow-sm rounded-lg transition-all text-surface-600 min-w-[36px] flex justify-center"
+          className={`${isFullscreen ? 'p-1.5' : 'p-2.5'} hover:bg-white hover:shadow-sm rounded-lg transition-all text-surface-600 ${isFullscreen ? 'min-w-[28px]' : 'min-w-[36px]'} flex justify-center`}
         >
-          <Minus size={16} />
+          <Minus size={isFullscreen ? 14 : 16} />
         </button>
         <input 
           type="number" 
           value={Math.round(selectedBlock.fontSize)}
           onChange={(e) => updateSelected({ fontSize: parseInt(e.target.value) || 12 })}
-          className="w-12 text-center bg-transparent text-sm font-black text-surface-900 focus:outline-none"
+          className={`${isFullscreen ? 'w-10' : 'w-12'} text-center bg-transparent text-sm font-black text-surface-900 focus:outline-none`}
         />
         <button 
           onClick={() => updateSelected({ fontSize: Math.min(200, selectedBlock.fontSize + 2) })}
-          className="p-2.5 hover:bg-white hover:shadow-sm rounded-lg transition-all text-surface-600 min-w-[36px] flex justify-center"
+          className={`${isFullscreen ? 'p-1.5' : 'p-2.5'} hover:bg-white hover:shadow-sm rounded-lg transition-all text-surface-600 ${isFullscreen ? 'min-w-[28px]' : 'min-w-[36px]'} flex justify-center`}
         >
-          <Plus size={16} />
+          <Plus size={isFullscreen ? 14 : 16} />
         </button>
       </div>
 
-      <div className="w-px h-8 bg-surface-200 mx-1 shrink-0" />
+      <div className={`w-px ${isFullscreen ? 'h-6' : 'h-8'} bg-surface-200 mx-1 shrink-0`} />
 
       {/* Alignment */}
-      <div className="flex items-center gap-1 bg-surface-50 border border-surface-200 rounded-xl p-1 shadow-sm shrink-0">
+      <div className={`flex items-center gap-1 bg-surface-50 border border-surface-200 rounded-xl ${isFullscreen ? 'p-0.5' : 'p-1'} shadow-sm shrink-0`}>
         {[
           { id: 'left', icon: AlignLeft },
           { id: 'center', icon: AlignCenter },
@@ -292,24 +295,24 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
           <button 
             key={item.id}
             onClick={() => updateSelected({ align: item.id as any })}
-            className={`p-3 rounded-lg transition-all ${selectedBlock.align === item.id || (!selectedBlock.align && item.id === 'left') ? 'bg-white shadow-md text-brand-600' : 'text-surface-400 hover:text-surface-600'}`}
+            className={`${isFullscreen ? 'p-2' : 'p-3'} rounded-lg transition-all ${selectedBlock.align === item.id || (!selectedBlock.align && item.id === 'left') ? 'bg-white shadow-md text-brand-600' : 'text-surface-400 hover:text-surface-600'}`}
           >
-            <item.icon size={18} />
+            <item.icon size={isFullscreen ? 16 : 18} />
           </button>
         ))}
       </div>
 
-      <div className="w-px h-8 bg-surface-200 mx-1 shrink-0" />
+      <div className={`w-px ${isFullscreen ? 'h-6' : 'h-8'} bg-surface-200 mx-1 shrink-0`} />
 
       {/* Color Picker */}
       <div className="relative shrink-0">
         <button 
           ref={colorButtonRef}
           onClick={() => setActiveDropdown(activeDropdown === 'color' ? null : 'color')}
-          className="flex items-center gap-3 px-4 py-3 hover:bg-surface-50 rounded-xl transition-all border border-surface-200 bg-white shadow-sm touch-manipulation cursor-pointer"
+          className={`flex items-center gap-2 ${isFullscreen ? 'px-3 py-2' : 'px-4 py-3'} hover:bg-surface-50 rounded-xl transition-all border border-surface-200 bg-white shadow-sm touch-manipulation cursor-pointer`}
         >
-          <div className="w-5 h-5 rounded-full border border-surface-200 shadow-inner" style={{ backgroundColor: selectedBlock.fill }} />
-          <span className="text-sm font-bold text-surface-700">Ink</span>
+          <div className={`${isFullscreen ? 'w-4 h-4' : 'w-5 h-5'} rounded-full border border-surface-200 shadow-inner`} style={{ backgroundColor: selectedBlock.fill }} />
+          <span className="text-sm font-bold text-surface-700">{isFullscreen ? '' : 'Ink'}</span>
           <ChevronDown size={14} className={`text-surface-400 transition-transform duration-300 ${activeDropdown === 'color' ? 'rotate-180' : ''}`} />
         </button>
         {activeDropdown === 'color' && createPortal(
@@ -390,31 +393,36 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
       <div className="w-px h-8 bg-surface-200 mx-1 shrink-0" />
 
       {/* Spacing Controls */}
-      <div className="flex items-center gap-8 px-4 shrink-0">
+      <div className={`flex items-center ${isFullscreen ? 'gap-4' : 'gap-8'} px-4 shrink-0`}>
         <SliderControl 
           label="Line" value={selectedBlock.lineHeight || 1.2} min={0.5} max={3} step={0.1}
           onChange={(val) => updateSelected({ lineHeight: val })}
           onReset={() => updateSelected({ lineHeight: 1.2 })}
+          isFullscreen={isFullscreen}
         />
         <SliderControl 
           label="Letter" value={selectedBlock.letterSpacing || 0} min={-5} max={20} step={0.5}
           onChange={(val) => updateSelected({ letterSpacing: val })}
           onReset={() => updateSelected({ letterSpacing: 0 })}
+          isFullscreen={isFullscreen}
         />
         <SliderControl 
           label="Word" value={selectedBlock.wordSpacing || 0} min={0} max={10} step={1}
           onChange={(val) => updateSelected({ wordSpacing: val })}
           onReset={() => updateSelected({ wordSpacing: 0 })}
+          isFullscreen={isFullscreen}
         />
         <SliderControl 
           label="Tilt" value={selectedBlock.rotation || 0} min={-10} max={10} step={0.5} unit="°"
           onChange={(val) => updateSelected({ rotation: val })}
           onReset={() => updateSelected({ rotation: 0 })}
+          isFullscreen={isFullscreen}
         />
         <SliderControl 
           label="Opacity" value={selectedBlock.opacity || 1} min={0.1} max={1} step={0.05}
           onChange={(val) => updateSelected({ opacity: val })}
           onReset={() => updateSelected({ opacity: 1 })}
+          isFullscreen={isFullscreen}
         />
         </div>
       </div>
