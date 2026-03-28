@@ -1,5 +1,5 @@
 {
-  "name": "Remix: Handify.ai",
-  "description": "Handify.ai - The ultimate tool to convert digital text into realistic handwriting. Upload a photo of a page and overlay natural-looking handwritten text with custom fonts and ink colors.",
+  "name": "Remix: Handify.ai - Realistic Text to Handwriting Converter",
+  "description": "Convert digital text into realistic handwriting with Handify.ai. The best free online tool to create natural-looking handwritten assignments, letters, and notes using custom fonts and paper backgrounds.",
   "requestFramePermissions": []
 }

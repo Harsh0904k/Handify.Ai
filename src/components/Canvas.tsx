@@ -311,9 +311,9 @@ const IndividualTransformer = ({ id, isActive, isExporting, textBlocks }: { id: 
       enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']}
       anchorSize={10}
       anchorCornerRadius={3}
-      anchorStroke="#3b82f6"
+      anchorStroke="#6366f1"
       anchorFill="#fff"
-      borderStroke="#3b82f6"
+      borderStroke="#6366f1"
       borderDash={[3, 3]}
       boundBoxFunc={(oldBox, newBox) => {
         if (newBox.width < 5 || newBox.height < 5) return oldBox;
@@ -435,12 +435,12 @@ export default function Canvas({
     <div 
       ref={containerRef} 
       onClick={() => !isActive && !isExporting && onActivate?.()}
-      className={`w-full h-full bg-zinc-200 rounded-xl overflow-hidden transition-all duration-300 flex items-center justify-center relative ${
-        !isExporting && isActive ? 'sm:ring-4 sm:ring-blue-500 sm:shadow-2xl' : 'shadow-inner'
-      } ${!isActive && !isExporting ? 'cursor-pointer hover:bg-zinc-300' : ''}`}
+      className={`w-full h-full bg-surface-100 rounded-xl overflow-hidden transition-all duration-300 flex items-center justify-center relative touch-pan-y ${
+        !isExporting && isActive ? 'sm:ring-4 sm:ring-brand-500/30 sm:shadow-2xl' : 'shadow-inner'
+      } ${!isActive && !isExporting ? 'cursor-pointer hover:bg-surface-200' : ''}`}
     >
       {!backgroundImage ? (
-        <div className="text-zinc-400 font-medium italic p-4 text-center">Upload a photo to start</div>
+        <div className="text-surface-400 font-medium italic p-4 text-center">Upload a photo to start</div>
       ) : (
         <Stage
           width={dimensions.width}
@@ -448,10 +448,10 @@ export default function Canvas({
           onClick={handleStageClick}
           onTap={handleStageClick}
           ref={stageRef}
-          className={!isExporting && isActive && (selectedIds.length > 0 || typeof window !== 'undefined' && window.innerWidth >= 640) ? 'touch-none' : 'touch-auto'}
+          className={!isExporting && isActive && (selectedIds.length > 0 || moveMode === 'all' || typeof window !== 'undefined' && window.innerWidth >= 640) ? 'touch-none' : 'touch-pan-y'}
           pixelRatio={isExporting ? 3 : Math.min(2, window.devicePixelRatio || 1)}
           listening={listening !== undefined ? listening : (!isExporting && isActive)}
-          preventDefault={!isExporting && isActive && (selectedIds.length > 0 || typeof window !== 'undefined' && window.innerWidth >= 640)}
+          preventDefault={!isExporting && isActive && (selectedIds.length > 0 || moveMode === 'all' || typeof window !== 'undefined' && window.innerWidth >= 640)}
         >
           <Layer 
             scaleX={scale} 
@@ -553,7 +553,7 @@ export default function Canvas({
 
             {moveMode === 'all' ? (
               <Group
-                draggable={!isExporting && isActive && (typeof window !== 'undefined' && window.innerWidth >= 640)}
+                draggable={!isExporting && isActive}
                 onDragEnd={(e) => {
                   const deltaX = e.target.x();
                   const deltaY = e.target.y();
@@ -630,9 +630,9 @@ export default function Canvas({
                       enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']}
                       anchorSize={12}
                       anchorCornerRadius={3}
-                      anchorStroke="#000"
+                      anchorStroke="#6366f1"
                       anchorFill="#fff"
-                      borderStroke="#000"
+                      borderStroke="#6366f1"
                       borderDash={[3, 3]}
                       boundBoxFunc={(oldBox, newBox) => {
                         if (newBox.width < 5 || newBox.height < 5) return oldBox;

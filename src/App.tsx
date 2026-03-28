@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useDropzone } from 'react-dropzone';
 import { logAnalyticsEvent, auth, db } from './firebase';
 import { 
@@ -21,9 +22,11 @@ import {
   LogOut,
   MessageSquare,
   Star,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast, Toaster } from 'sonner';
 import { 
   collection, 
   addDoc, 
@@ -153,29 +156,29 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
       <div className="min-h-full flex flex-col items-center justify-start md:justify-center p-6 md:p-12">
         <button 
           onClick={onClose}
-          className="fixed top-6 right-6 md:top-8 md:right-8 p-3 bg-zinc-100/80 backdrop-blur-md text-zinc-500 rounded-2xl hover:bg-zinc-200 transition-all z-[110]"
+          className="fixed top-6 right-6 md:top-8 md:right-8 p-3 bg-surface-100/80 backdrop-blur-md text-surface-500 rounded-2xl hover:bg-surface-200 transition-all z-[110]"
         >
           <X size={24} />
         </button>
 
         <div className="max-w-4xl w-full flex flex-col md:flex-row gap-12 items-start py-12 md:py-20">
         <div className="flex-1 space-y-6">
-          <div className="w-16 h-16 bg-zinc-900 text-white rounded-3xl flex items-center justify-center shadow-2xl">
+          <div className="w-16 h-16 bg-brand-600 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-brand-200/50">
             <MessageSquare size={32} />
           </div>
           <div className="space-y-4">
-            <h3 className="text-4xl font-bold text-zinc-900 tracking-tight">Review & Suggestions</h3>
-            <p className="text-lg text-zinc-500 leading-relaxed max-w-sm">
+            <h3 className="text-4xl font-bold text-surface-900 tracking-tight">Review & Suggestions</h3>
+            <p className="text-lg text-surface-500 leading-relaxed max-w-sm">
               We're constantly evolving. Share your thoughts or suggest features you'd like to see in Handify.ai.
             </p>
           </div>
           
           {!user && (
             <div className="space-y-4">
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Or for convenience</p>
+              <p className="text-xs font-bold text-surface-400 uppercase tracking-widest">Or for convenience</p>
               <button 
                 onClick={handleLogin}
-                className="flex items-center gap-3 px-8 py-4 bg-white border border-zinc-200 rounded-2xl text-base font-bold text-zinc-700 hover:bg-zinc-50 transition-all shadow-sm"
+                className="flex items-center gap-3 px-8 py-4 bg-white border border-surface-200 rounded-2xl text-base font-bold text-surface-700 hover:bg-surface-50 transition-all shadow-sm"
               >
                 <LogIn size={20} />
                 Sign in with Google
@@ -185,13 +188,13 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
         </div>
         
         <form onSubmit={handleSubmit} className="flex-[1.5] w-full space-y-8">
-          <div className="flex gap-3 p-2 bg-zinc-100 rounded-2xl w-fit">
+          <div className="flex gap-3 p-2 bg-surface-100 rounded-2xl w-fit">
             {(['review', 'suggestion'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setType(t)}
-                className={`px-8 py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${type === t ? 'bg-white shadow-lg text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+                className={`px-8 py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${type === t ? 'bg-white shadow-lg text-brand-600' : 'text-surface-500 hover:text-surface-700'}`}
               >
                 {t}
               </button>
@@ -199,25 +202,25 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1">Your Email</label>
+            <label className="text-xs font-bold text-surface-400 uppercase tracking-widest ml-1">Your Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email address..."
-              className="w-full p-5 bg-zinc-50 border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none text-base transition-all"
+              className="w-full p-5 bg-surface-50 border border-surface-200 rounded-2xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-base transition-all"
             />
           </div>
           
           <div className="relative group">
-            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1 mb-2 block">Your Message</label>
+            <label className="text-xs font-bold text-surface-400 uppercase tracking-widest ml-1 mb-2 block">Your Message</label>
             <textarea
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               required
               placeholder={type === 'review' ? "What do you think about the app?" : "What features should we add next?"}
-              className="w-full p-6 bg-zinc-50 border border-zinc-200 rounded-3xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none min-h-[200px] text-lg transition-all resize-none group-hover:border-zinc-300"
+              className="w-full p-6 bg-surface-50 border border-surface-200 rounded-3xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none min-h-[200px] text-lg transition-all resize-none group-hover:border-surface-300"
             />
             <AnimatePresence>
               {submitted && (
@@ -225,7 +228,7 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
                   initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
                   animate={{ opacity: 1, backdropFilter: 'blur(8px)' }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-white/90 rounded-3xl flex flex-col items-center justify-center text-zinc-900 gap-4"
+                  className="absolute inset-0 bg-white/90 rounded-3xl flex flex-col items-center justify-center text-surface-900 gap-4"
                 >
                   <motion.div 
                     initial={{ scale: 0 }}
@@ -244,15 +247,15 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
             <button
               type="submit"
               disabled={isSubmitting || !feedback.trim() || !email.trim()}
-              className="px-12 py-5 bg-zinc-900 text-white rounded-3xl text-lg font-bold hover:bg-zinc-800 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-zinc-200"
+              className="px-12 py-5 bg-brand-600 text-white rounded-3xl text-lg font-bold hover:bg-brand-700 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-brand-200/50"
             >
               {isSubmitting ? 'Sending...' : 'Submit Feedback'}
             </button>
             
             {user && (
               <div className="flex items-center gap-4">
-                <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-full border-2 border-zinc-100" referrerPolicy="no-referrer" />
-                <button type="button" onClick={() => signOut(auth)} className="text-xs font-bold text-zinc-400 hover:text-red-500 uppercase tracking-widest transition-colors">Sign Out</button>
+                <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-full border-2 border-surface-100" referrerPolicy="no-referrer" />
+                <button type="button" onClick={() => signOut(auth)} className="text-xs font-bold text-surface-400 hover:text-red-500 uppercase tracking-widest transition-colors">Sign Out</button>
               </div>
             )}
           </div>
@@ -302,6 +305,20 @@ export default function App() {
   const [isCharVariance, setIsCharVariance] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(false);
+  const prevImageRef = useRef<string | null>(null);
+
+  // Clean up object URLs to prevent memory leaks
+  useEffect(() => {
+    if (prevImageRef.current && prevImageRef.current !== backgroundImage && prevImageRef.current.startsWith('blob:')) {
+      // Small delay before revoking to ensure any components using the old URL have transitioned
+      const toRevoke = prevImageRef.current;
+      setTimeout(() => {
+        URL.revokeObjectURL(toRevoke);
+      }, 1000);
+    }
+    prevImageRef.current = backgroundImage;
+  }, [backgroundImage]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -317,36 +334,95 @@ export default function App() {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error("Please upload a valid image file.");
+        return;
+      }
+
+      // Check file size (20MB limit)
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error("File is too large. Please upload an image smaller than 20MB.");
+        return;
+      }
+
+      setIsImageLoading(true);
       logAnalyticsEvent('image_upload', {
         file_type: file.type,
         file_size: file.size
       });
+
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const imageUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        setImageDimensions({ width: img.width, height: img.height });
-        setBackgroundImage(imageUrl);
+      let retryCount = 0;
+      const maxRetries = isMobile ? 1 : 0;
+
+      const loadImage = (url: string) => {
+        const img = new Image();
         
-        // Initialize boundary based on fixed internal width (3000px for high quality)
-        const w = 3000;
-        const scale = w / img.width;
-        const h = img.height * scale;
-        
-        setBoundary({
-          topLeft: { x: w * 0.1, y: h * 0.1 },
-          topRight: { x: w * 0.9, y: h * 0.1 },
-          bottomLeft: { x: w * 0.1, y: h * 0.9 },
-          bottomRight: { x: w * 0.9, y: h * 0.9 }
-        });
-        setIsCalibrating(true);
+        const handleLoad = () => {
+          setImageDimensions({ width: img.width, height: img.height });
+          setBackgroundImage(url);
+          
+          // Initialize boundary based on fixed internal width (3000px for high quality)
+          const w = 3000;
+          const scale = w / img.width;
+          const h = img.height * scale;
+          
+          setBoundary({
+            topLeft: { x: w * 0.1, y: h * 0.1 },
+            topRight: { x: w * 0.9, y: h * 0.1 },
+            bottomLeft: { x: w * 0.1, y: h * 0.9 },
+            bottomRight: { x: w * 0.9, y: h * 0.9 }
+          });
+          setIsCalibrating(true);
+          setIsImageLoading(false);
+          toast.success("Image uploaded successfully!");
+          
+          // Cleanup listeners
+          img.removeEventListener('load', handleLoad);
+          img.removeEventListener('error', handleError);
+        };
+
+        const handleError = () => {
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.warn(`Retrying image load (${retryCount}/${maxRetries})...`);
+            setTimeout(() => loadImage(url), 500);
+            return;
+          }
+
+          setIsImageLoading(false);
+          URL.revokeObjectURL(url);
+          console.error("Failed to load image:", file.name, file.type, file.size);
+          toast.error("Failed to load image. The file might be corrupted or too large for your browser.");
+          
+          // Cleanup listeners
+          img.removeEventListener('load', handleLoad);
+          img.removeEventListener('error', handleError);
+        };
+
+        img.addEventListener('load', handleLoad);
+        img.addEventListener('error', handleError);
+
+        // Small delay to allow browser to settle, especially on mobile
+        const delay = isMobile ? 200 : 50;
+        setTimeout(() => {
+          img.src = url;
+          
+          // Use decode() if available for smoother loading, but skip for very large images on mobile to save memory
+          const shouldDecode = !isMobile || file.size < 5 * 1024 * 1024;
+          if (shouldDecode && 'decode' in img) {
+            (img as any).decode().catch((err: any) => {
+              console.warn("Image decode failed, falling back to standard load:", err);
+            });
+          }
+        }, delay);
       };
-      img.onerror = () => {
-        console.error("Failed to load image");
-        alert("Failed to load image. Please try another file.");
-      };
-      img.src = imageUrl;
+
+      loadImage(imageUrl);
     }
-  }, []);
+  }, [backgroundImage]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -759,8 +835,36 @@ export default function App() {
     generatePages();
   }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode === 'words']);
 
+  const resetAll = () => {
+    if (backgroundImage) {
+      URL.revokeObjectURL(backgroundImage);
+    }
+    setBackgroundImage(null);
+    setTextBlocks([]);
+    setSelectedIds([]);
+    setBulkText('');
+    setPages([]);
+    toast.info("All progress cleared.");
+  };
+
   return (
     <div className="h-screen bg-[#f8f9fa] flex flex-col overflow-hidden">
+      <Toaster position="top-center" richColors />
+      
+      {/* Image Loading Overlay */}
+      <AnimatePresence>
+        {isImageLoading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
+          >
+            <Loader2 size={48} className="text-brand-600 animate-spin" />
+            <p className="text-lg font-bold text-surface-900">Processing your image...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Font Preloader */}
       <div className="opacity-0 fixed -z-50 pointer-events-none" aria-hidden="true">
         {HANDWRITING_FONTS.map(font => (
@@ -775,7 +879,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-zinc-900/95 sm:backdrop-blur-md flex flex-col items-center justify-center p-2 md:p-6"
+            className="fixed inset-0 z-[100] bg-surface-900/95 sm:backdrop-blur-md flex flex-col items-center justify-center p-2 md:p-6"
           >
             <div className="w-full max-w-6xl flex flex-col gap-3 h-full max-h-[95vh]">
               <div className="flex items-center justify-between text-white px-2">
@@ -785,13 +889,13 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-sm md:text-base font-bold leading-tight">Calibrate Page Boundary</h2>
-                    <p className="text-[9px] md:text-xs text-zinc-400">Drag the red circles to the corners of the writing area.</p>
+                    <p className="text-[9px] md:text-xs text-surface-400">Drag the red circles to the corners of the writing area.</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <button 
                     onClick={resetBoundary}
-                    className="p-2 md:px-4 md:py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-bold transition-all flex items-center gap-2 text-zinc-300"
+                    className="p-2 md:px-4 md:py-2 bg-surface-800 hover:bg-surface-700 rounded-lg text-xs font-bold transition-all flex items-center gap-2 text-surface-300"
                     title="Reset Dots"
                   >
                     <RotateCcw size={14} />
@@ -799,14 +903,14 @@ export default function App() {
                   </button>
                   <button 
                     onClick={() => setIsCalibrating(false)}
-                    className="px-4 md:px-6 py-1.5 md:py-2 bg-white text-zinc-900 rounded-lg text-xs font-bold hover:bg-zinc-100 transition-all shadow-lg"
+                    className="px-4 md:px-6 py-1.5 md:py-2 bg-white text-surface-900 rounded-lg text-xs font-bold hover:bg-surface-100 transition-all shadow-lg"
                   >
                     Done
                   </button>
                 </div>
               </div>
               
-              <div className="flex-1 min-h-0 bg-zinc-800 rounded-2xl overflow-hidden relative border border-zinc-700 shadow-2xl flex items-center justify-center">
+              <div className="flex-1 min-h-0 bg-surface-800 rounded-2xl overflow-hidden relative border border-surface-700 shadow-2xl flex items-center justify-center">
                 <Canvas 
                   backgroundImage={backgroundImage}
                   textBlocks={[]}
@@ -826,11 +930,11 @@ export default function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-4 gap-2 md:gap-4 text-zinc-500 text-[8px] md:text-[10px] uppercase font-bold tracking-widest text-center px-2">
-                <div className="bg-zinc-800/50 py-1.5 md:py-2 rounded-lg border border-zinc-700/50">Top Left</div>
-                <div className="bg-zinc-800/50 py-1.5 md:py-2 rounded-lg border border-zinc-700/50">Top Right</div>
-                <div className="bg-zinc-800/50 py-1.5 md:py-2 rounded-lg border border-zinc-700/50">Bottom Left</div>
-                <div className="bg-zinc-800/50 py-1.5 md:py-2 rounded-lg border border-zinc-700/50">Bottom Right</div>
+              <div className="grid grid-cols-4 gap-2 md:gap-4 text-surface-500 text-[8px] md:text-[10px] uppercase font-bold tracking-widest text-center px-2">
+                <div className="bg-surface-800/50 py-1.5 md:py-2 rounded-lg border border-surface-700/50">Top Left</div>
+                <div className="bg-surface-800/50 py-1.5 md:py-2 rounded-lg border border-surface-700/50">Top Right</div>
+                <div className="bg-surface-800/50 py-1.5 md:py-2 rounded-lg border border-surface-700/50">Bottom Left</div>
+                <div className="bg-surface-800/50 py-1.5 md:py-2 rounded-lg border border-surface-700/50">Bottom Right</div>
               </div>
             </div>
           </motion.div>
@@ -838,160 +942,53 @@ export default function App() {
       </AnimatePresence>
 
       {/* Sticky Top Bar Container */}
-      <div className="sticky top-0 z-50 bg-white shadow-sm">
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-surface-200">
         {/* Header */}
-        <header className="bg-white border-b border-zinc-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between relative z-20">
+        <header className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between relative z-20">
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-zinc-900 rounded-lg flex items-center justify-center text-white">
-              <Type size={20} className="md:hidden" />
-              <Type size={24} className="hidden md:block" />
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-surface-900 rounded-xl flex items-center justify-center text-white overflow-hidden shadow-lg shadow-surface-200">
+              <img src="/logo_64.png" alt="Handify.ai Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div>
-              <h1 className="font-bold text-base md:text-lg tracking-tight">Handify.ai</h1>
-              <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider hidden sm:block">Realistic Handwriting Tool</p>
+              <h1 className="font-bold text-base md:text-lg tracking-tight text-surface-900">Handify.ai</h1>
+              <p className="text-[10px] text-surface-500 font-bold uppercase tracking-widest hidden sm:block">Realistic Handwriting Converter</p>
             </div>
+          </div>
+
+          {/* Hidden SEO Content for Search Engines */}
+          <div className="sr-only" aria-hidden="true">
+            <h2>Best Text to Handwriting Generator Online</h2>
+            <p>
+              Handify.ai is a free online tool that converts digital text into realistic handwriting. 
+              Whether you need to complete assignments, write letters, or create creative notes, our 
+              handwriting generator provides the most natural-looking results. 
+              Upload your own paper background, choose from various cursive fonts, and customize 
+              ink colors to match your style.
+            </p>
+            <ul>
+              <li>Realistic Cursive Handwriting Fonts</li>
+              <li>Custom Paper Background Upload</li>
+              <li>Adjustable Line Height and Letter Spacing</li>
+              <li>Export as High-Quality PDF or Image</li>
+              <li>Free to use with no registration required</li>
+            </ul>
           </div>
           
             <div className="flex gap-2">
               <div className="relative">
                 <button 
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                  className="px-3 md:px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-bold hover:bg-zinc-800 active:scale-95 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer touch-manipulation"
+                  className="px-3 md:px-5 py-2 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-100 flex items-center gap-2 disabled:opacity-50 cursor-pointer touch-manipulation"
                   disabled={isExporting || !backgroundImage || (bulkText && pages.length === 0)}
                 >
                   <Download size={18} />
                   {isExporting ? 'Processing...' : (pages.length > 0 ? `Export ${pages.length}` : 'Export')}
-                  <ChevronDown size={16} className={`transition-transform ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={16} className={`transition-transform duration-300 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
-                <AnimatePresence>
-                  {isExportMenuOpen && (
-                    <>
-                      <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[90] bg-black/40 sm:backdrop-blur-sm" 
-                        onClick={() => setIsExportMenuOpen(false)}
-                      />
-                      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
-                        <motion.div 
-                          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                          style={{ willChange: 'transform, opacity' }}
-                          className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden pointer-events-auto"
-                        >
-                        <div className="p-4 border-b border-zinc-100 bg-zinc-50/50">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-zinc-900">Export Options</h3>
-                            <button 
-                              onClick={() => setIsExportMenuOpen(false)}
-                              className="p-1 hover:bg-zinc-200 rounded-full text-zinc-400 transition-colors"
-                            >
-                              <Plus size={20} className="rotate-45" />
-                            </button>
-                          </div>
-                          
-                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Resolution</p>
-                          <div className="grid grid-cols-3 gap-1 bg-zinc-200/50 p-1 rounded-xl">
-                            {(['low', 'normal', 'high'] as const).map((res) => (
-                              <button
-                                key={res}
-                                onClick={() => setExportResolution(res)}
-                                className={`px-2 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${exportResolution === res ? 'bg-white shadow-md text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
-                              >
-                                {res}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="text-[10px] text-zinc-400 mt-2 italic">
-                            {exportResolution === 'low' ? 'Fast export, smallest size' : exportResolution === 'normal' ? 'Balanced quality and size' : 'Best quality, optimized < 2MB'}
-                          </p>
-
-                          <div className="h-px bg-zinc-100 my-4" />
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold text-zinc-900">Realistic Mode</span>
-                              <span className="text-[10px] text-zinc-400">Adds natural jitter & photo look</span>
-                            </div>
-                            <button 
-                              onClick={() => {
-                                const newValue = !isRealisticMode;
-                                setIsRealisticMode(newValue);
-                                logAnalyticsEvent('realistic_mode_toggle', { enabled: newValue });
-                              }}
-                              className={`w-10 h-5 rounded-full transition-all relative ${isRealisticMode ? 'bg-zinc-900' : 'bg-zinc-200'}`}
-                            >
-                              <motion.div 
-                                animate={{ x: isRealisticMode ? 20 : 2 }}
-                                className="absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm"
-                              />
-                            </button>
-                          </div>
-
-                          <div className="flex items-center justify-between mt-4">
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold text-zinc-900">Character Variance</span>
-                              <span className="text-[10px] text-zinc-400">Makes same letters look different</span>
-                            </div>
-                            <button 
-                              onClick={() => {
-                                const newValue = !isCharVariance;
-                                setIsCharVariance(newValue);
-                                logAnalyticsEvent('char_variance_toggle', { enabled: newValue });
-                              }}
-                              className={`w-10 h-5 rounded-full transition-all relative ${isCharVariance ? 'bg-zinc-900' : 'bg-zinc-200'}`}
-                            >
-                              <motion.div 
-                                animate={{ x: isCharVariance ? 20 : 2 }}
-                                className="absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm"
-                              />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="p-2">
-                          <button 
-                            onClick={downloadAsImage}
-                            className="w-full px-4 py-4 text-left text-sm hover:bg-zinc-50 flex items-center gap-4 text-zinc-700 font-bold border-none bg-transparent cursor-pointer rounded-xl transition-colors"
-                          >
-                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-                              <ImagePlus size={20} />
-                            </div>
-                            <div className="flex flex-col">
-                              <span>Download as Image</span>
-                              <span className="text-[10px] font-medium text-zinc-400">High-quality JPEG format</span>
-                            </div>
-                          </button>
-                          <button 
-                            onClick={downloadAsPDF}
-                            className="w-full px-4 py-4 text-left text-sm hover:bg-zinc-50 flex items-center gap-4 text-zinc-700 font-bold border-none bg-transparent cursor-pointer rounded-xl transition-colors"
-                          >
-                            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
-                              <FileText size={20} />
-                            </div>
-                            <div className="flex flex-col">
-                              <span>Download as PDF</span>
-                              <span className="text-[10px] font-medium text-zinc-400">Multi-page document</span>
-                            </div>
-                          </button>
-                        </div>
-                      </motion.div>
-                    </div>
-                  </>
-                )}
-              </AnimatePresence>
               </div>
               <button 
-                onClick={() => {
-                  setBackgroundImage(null);
-                  setTextBlocks([]);
-                  setSelectedIds([]);
-                  setBulkText('');
-                  setPages([]);
-                }}
-                className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-600 transition-colors"
+                onClick={resetAll}
+                className="p-2.5 hover:bg-surface-100 rounded-xl text-surface-500 transition-colors"
                 title="Reset"
               >
                 <RotateCcw size={18} />
@@ -1012,7 +1009,7 @@ export default function App() {
         />
       </div>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto relative no-scrollbar lg:scrollbar-auto">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-y-auto overflow-x-hidden relative lg:scrollbar-auto">
         {/* Layout & Export Loading Overlay */}
         <AnimatePresence>
           {(isLayoutLoading || isExporting) && (
@@ -1020,14 +1017,19 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[60] bg-white/80 sm:backdrop-blur-[4px] flex flex-col items-center justify-center gap-4"
+              className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center gap-6"
             >
-              <div className="w-12 h-12 border-4 border-zinc-200 border-t-zinc-900 rounded-full animate-spin" />
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-surface-100 border-t-brand-600 rounded-full animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 bg-brand-50 rounded-full animate-pulse" />
+                </div>
+              </div>
               <div className="flex flex-col items-center text-center px-6">
-                <p className="text-zinc-900 font-bold text-sm">
+                <p className="text-surface-900 font-bold text-lg tracking-tight">
                   {isExporting ? 'Generating High-Res Document' : 'Applying Font Layout'}
                 </p>
-                <p className="text-zinc-500 text-xs">
+                <p className="text-surface-500 text-sm font-medium">
                   {isExporting 
                     ? 'This may take a moment. Please do not close the tab.' 
                     : 'Measuring text for boundary alignment...'}
@@ -1054,7 +1056,7 @@ export default function App() {
             <div className="w-full flex flex-col items-center gap-6">
               {/* Page Navigation - Mobile Only */}
               {pages.length > 1 && (
-                <div className="flex sm:hidden items-center gap-6 bg-white px-6 py-3 rounded-2xl shadow-sm border border-zinc-200 sticky top-4 z-40">
+                <div className="flex sm:hidden items-center gap-6 bg-white/80 backdrop-blur-md px-6 py-3 rounded-2xl shadow-xl shadow-surface-200/50 border border-surface-200 sticky top-4 z-40">
                   <button 
                     onClick={() => {
                       const nextIdx = Math.max(0, currentPageIndex - 1);
@@ -1062,15 +1064,15 @@ export default function App() {
                       setActivePageIndex(nextIdx);
                     }}
                     disabled={currentPageIndex === 0}
-                    className="p-2 hover:bg-zinc-100 rounded-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 text-zinc-600"
+                    className="p-2 hover:bg-surface-100 rounded-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 text-surface-600"
                     title="Previous Page"
                   >
                     <ChevronLeft size={24} />
                   </button>
                   
                   <div className="flex flex-col items-center min-w-[100px]">
-                    <span className="text-sm font-black text-zinc-900 tracking-tight">PAGE {currentPageIndex + 1}</span>
-                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">of {pages.length}</span>
+                    <span className="text-sm font-black text-surface-900 tracking-tight">PAGE {currentPageIndex + 1}</span>
+                    <span className="text-[10px] text-surface-400 font-bold uppercase tracking-widest">of {pages.length}</span>
                   </div>
 
                   <button 
@@ -1080,7 +1082,7 @@ export default function App() {
                       setActivePageIndex(nextIdx);
                     }}
                     disabled={currentPageIndex === pages.length - 1}
-                    className="p-2 hover:bg-zinc-100 rounded-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 text-zinc-600"
+                    className="p-2 hover:bg-surface-100 rounded-xl disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95 text-surface-600"
                     title="Next Page"
                   >
                     <ChevronRight size={24} />
@@ -1097,8 +1099,8 @@ export default function App() {
                     }`}
                   >
                     <div className="mb-3 flex justify-between items-center px-4">
-                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Page {idx + 1}</span>
-                      <span className="hidden sm:inline text-[10px] font-bold text-zinc-300 italic">Desktop View</span>
+                      <span className="text-[10px] font-black text-surface-400 uppercase tracking-widest">Page {idx + 1}</span>
+                      <span className="hidden sm:inline text-[10px] font-bold text-surface-300 italic">Desktop View</span>
                     </div>
                     <Canvas 
                       backgroundImage={backgroundImage}
@@ -1180,15 +1182,15 @@ export default function App() {
             )}
           
           {!backgroundImage && (
-            <div className={`w-full max-w-4xl border-2 border-dashed rounded-2xl p-12 text-center transition-all ${isDragActive ? 'border-zinc-900 bg-zinc-100' : 'border-zinc-200 bg-white'}`}>
-              <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-400">
+            <div className={`w-full max-w-4xl border-2 border-dashed rounded-2xl p-12 text-center transition-all ${isDragActive ? 'border-brand-500 bg-brand-50/30' : 'border-surface-200 bg-white'}`}>
+              <div className="w-16 h-16 bg-surface-50 rounded-full flex items-center justify-center mx-auto mb-4 text-surface-400">
                 <ImageIcon size={32} />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Upload your page photo</h3>
-              <p className="text-zinc-500 mb-6 max-w-xs mx-auto">Take a photo of a notebook page or a blank sheet and drop it here.</p>
+              <h3 className="text-lg font-semibold mb-2 text-surface-900">Upload your page photo</h3>
+              <p className="text-surface-500 mb-6 max-w-xs mx-auto">Take a photo of a notebook page or a blank sheet and drop it here.</p>
               <button 
                 onClick={open}
-                className="bg-white border border-zinc-200 px-6 py-2 rounded-xl font-medium hover:bg-zinc-50 transition-all shadow-sm"
+                className="bg-white border border-surface-200 px-6 py-2 rounded-xl font-medium hover:bg-surface-50 transition-all shadow-sm text-surface-700"
               >
                 Select Photo
               </button>
@@ -1197,7 +1199,7 @@ export default function App() {
         </div>
 
         {/* Right: Sidebar Controls */}
-        <aside className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-zinc-200 p-4 md:p-6">
+        <aside className="w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-surface-200 p-4 md:p-6">
           <div className="space-y-6 md:space-y-8">
             {/* Mode Controls */}
             <div className="space-y-4">
@@ -1205,14 +1207,14 @@ export default function App() {
                 <div className="grid grid-cols-1 gap-2">
                   <button 
                     onClick={() => setIsCalibrating(true)}
-                    className="flex items-center justify-center gap-2 py-3 bg-zinc-900 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                    className="flex items-center justify-center gap-2 py-3 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-200/50"
                   >
                     <Layout size={16} />
                     <span>Calibrate Page Boundary</span>
                   </button>
                   <button 
                     onClick={open}
-                    className="flex items-center justify-center gap-2 py-3 bg-white border border-zinc-200 text-zinc-900 rounded-xl text-xs font-bold hover:bg-zinc-50 transition-all shadow-sm"
+                    className="flex items-center justify-center gap-2 py-3 bg-white border border-surface-200 text-surface-900 rounded-xl text-xs font-bold hover:bg-surface-50 transition-all shadow-sm"
                   >
                     <ImagePlus size={16} />
                     <span>Change Background</span>
@@ -1224,23 +1226,23 @@ export default function App() {
             <div className="space-y-4 md:space-y-6">
               {/* Bulk Text Input */}
               <div className="space-y-2">
-                <label className="text-[10px] md:text-xs font-bold text-zinc-400 uppercase tracking-wider">Bulk Content</label>
+                <label className="text-[10px] md:text-xs font-bold text-surface-400 uppercase tracking-wider">Bulk Content</label>
                 <textarea 
                   value={bulkText}
                   onChange={(e) => setBulkText(e.target.value)}
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none min-h-[120px] md:min-h-[200px] text-sm"
+                  className="w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none min-h-[120px] md:min-h-[200px] text-sm"
                   placeholder="Paste your long text here..."
                 />
               </div>
 
-              <div className="h-px bg-zinc-100" />
+              <div className="h-px bg-surface-100" />
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2 md:gap-3">
                 <button 
                   onClick={addTextBlock}
                   disabled={!backgroundImage}
-                  className="flex items-center justify-center gap-2 bg-zinc-900 text-white p-2.5 md:p-3 rounded-xl text-sm font-medium hover:bg-zinc-800 transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 bg-brand-600 text-white p-2.5 md:p-3 rounded-xl text-sm font-medium hover:bg-brand-700 transition-all disabled:opacity-50 shadow-lg shadow-brand-200/30"
                 >
                   <Plus size={18} />
                   <span>Add Text</span>
@@ -1248,7 +1250,7 @@ export default function App() {
                 <button 
                   onClick={deleteSelected}
                   disabled={selectedIds.length === 0}
-                  className="flex items-center justify-center gap-2 bg-zinc-100 text-zinc-600 p-2.5 md:p-3 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 bg-surface-100 text-surface-600 p-2.5 md:p-3 rounded-xl text-sm font-medium hover:bg-surface-200 transition-all disabled:opacity-50"
                 >
                   <Trash2 size={18} />
                   <span>Delete</span>
@@ -1264,29 +1266,29 @@ export default function App() {
                     exit={{ opacity: 0, y: 10 }}
                     className="space-y-6"
                   >
-                    <div className="h-px bg-zinc-100" />
+                    <div className="h-px bg-surface-100" />
                     
                     {/* Text Input */}
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Content</label>
+                      <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Content</label>
                       <textarea 
                         value={effectiveSelectedBlock.text}
                         onChange={(e) => updateSelected({ text: e.target.value })}
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none min-h-[150px] text-sm"
+                        className="w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none min-h-[150px] text-sm"
                         placeholder="Type your handwritten text..."
                       />
                       {selectedIds.length > 1 && (
-                        <p className="text-[10px] text-zinc-400 italic">Editing {selectedIds.length} blocks simultaneously</p>
+                        <p className="text-[10px] text-surface-400 italic">Editing {selectedIds.length} blocks simultaneously</p>
                       )}
                     </div>
 
-                    <div className="h-px bg-zinc-100" />
+                    <div className="h-px bg-surface-100" />
 
                     {/* Rotation Slider */}
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Tilt / Rotation</label>
-                        <span className="text-xs font-mono text-zinc-500">{Math.round(effectiveSelectedBlock.rotation)}°</span>
+                        <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Tilt / Rotation</label>
+                        <span className="text-xs font-mono text-surface-500">{Math.round(effectiveSelectedBlock.rotation)}°</span>
                       </div>
                       <input 
                         type="range" 
@@ -1294,7 +1296,9 @@ export default function App() {
                         max="45" 
                         value={effectiveSelectedBlock.rotation}
                         onChange={(e) => updateSelected({ rotation: parseFloat(e.target.value) })}
-                        className="w-full h-1.5 bg-zinc-100 rounded-lg appearance-none cursor-pointer accent-zinc-900"
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchMove={(e) => e.stopPropagation()}
+                        className="w-full h-2 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-brand-600 touch-none"
                       />
                     </div>
                   </motion.div>
@@ -1305,10 +1309,10 @@ export default function App() {
                     animate={{ opacity: 1 }}
                     className="text-center py-12"
                   >
-                    <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-300">
+                    <div className="w-12 h-12 bg-surface-50 rounded-full flex items-center justify-center mx-auto mb-3 text-surface-300">
                       <Type size={20} />
                     </div>
-                    <p className="text-sm text-zinc-400 italic">Select a text block to edit its properties</p>
+                    <p className="text-sm text-surface-400 italic">Select a text block to edit its properties</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1323,26 +1327,144 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Export Menu Portal */}
+      {createPortal(
+        <AnimatePresence>
+          {isExportMenuOpen && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-surface-950/40 backdrop-blur-[4px]" 
+                onClick={() => setIsExportMenuOpen(false)}
+              />
+              <motion.div 
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                style={{ willChange: 'transform, opacity' }}
+                className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-surface-100 overflow-hidden z-10"
+              >
+                <div className="p-5 border-b border-surface-100 bg-surface-50/50">
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="font-bold text-surface-900 text-lg">Export Options</h3>
+                    <button 
+                      onClick={() => setIsExportMenuOpen(false)}
+                      className="p-1.5 hover:bg-surface-200 rounded-full text-surface-400 transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <p className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-3">Resolution</p>
+                  <div className="grid grid-cols-3 gap-1 bg-surface-100 p-1 rounded-xl">
+                    {(['low', 'normal', 'high'] as const).map((res) => (
+                      <button
+                        key={res}
+                        onClick={() => setExportResolution(res)}
+                        className={`px-2 py-2.5 rounded-lg text-[10px] font-bold uppercase transition-all ${exportResolution === res ? 'bg-white shadow-sm text-brand-600' : 'text-surface-500 hover:text-surface-700'}`}
+                      >
+                        {res}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-surface-400 mt-2.5 italic font-medium">
+                    {exportResolution === 'low' ? 'Fast export, smallest size' : exportResolution === 'normal' ? 'Balanced quality and size' : 'Best quality, optimized < 2MB'}
+                  </p>
+
+                  <div className="h-px bg-surface-100 my-5" />
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-surface-900">Realistic Mode</span>
+                      <span className="text-[10px] text-surface-400 font-medium">Adds natural jitter & photo look</span>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newValue = !isRealisticMode;
+                        setIsRealisticMode(newValue);
+                        logAnalyticsEvent('realistic_mode_toggle', { enabled: newValue });
+                      }}
+                      className={`w-11 h-6 rounded-full transition-all relative ${isRealisticMode ? 'bg-brand-600' : 'bg-surface-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isRealisticMode ? 22 : 2 }}
+                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-md"
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-surface-900">Character Variance</span>
+                      <span className="text-[10px] text-surface-400 font-medium">Makes same letters look different</span>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newValue = !isCharVariance;
+                        setIsCharVariance(newValue);
+                        logAnalyticsEvent('char_variance_toggle', { enabled: newValue });
+                      }}
+                      className={`w-11 h-6 rounded-full transition-all relative ${isCharVariance ? 'bg-brand-600' : 'bg-surface-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isCharVariance ? 22 : 2 }}
+                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-md"
+                      />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-3 space-y-1">
+                  <button 
+                    onClick={downloadAsImage}
+                    className="w-full px-4 py-4 text-left text-sm hover:bg-surface-50 flex items-center gap-4 text-surface-700 font-bold border-none bg-transparent cursor-pointer rounded-2xl transition-colors"
+                  >
+                    <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center">
+                      <ImagePlus size={20} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span>Download as Image</span>
+                      <span className="text-[10px] font-medium text-surface-400">High-quality JPEG format</span>
+                    </div>
+                  </button>
+                  <button 
+                    onClick={downloadAsPDF}
+                    className="w-full px-4 py-4 text-left text-sm hover:bg-surface-50 flex items-center gap-4 text-surface-700 font-bold border-none bg-transparent cursor-pointer rounded-2xl transition-colors"
+                  >
+                    <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center">
+                      <FileText size={20} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span>Download as PDF</span>
+                      <span className="text-[10px] font-medium text-surface-400">Multi-page document</span>
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
       {/* Floating Feedback Button */}
       <button 
         onClick={() => setIsFeedbackOpen(true)}
-        className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center shadow-2xl hover:scale-110 transition-all active:scale-95 group"
+        className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-brand-600 text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-brand-200/50 hover:scale-110 transition-all active:scale-95 group"
       >
         <MessageSquare size={24} />
-        <span className="absolute right-full mr-4 px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
+        <span className="absolute right-full mr-4 px-3 py-1.5 bg-surface-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
           Feedback
         </span>
       </button>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-zinc-200 px-6 py-3 flex items-center justify-between text-[10px] text-zinc-400 font-medium uppercase tracking-widest">
+      <footer className="bg-white border-t border-surface-200 px-6 py-3 flex items-center justify-between text-[10px] text-surface-400 font-medium uppercase tracking-widest">
         <div className="flex gap-4">
           <span>© 2026 Handify.ai</span>
           <span>Privacy</span>
           <span>Terms</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span>Built for precision</span>
         </div>
       </footer>
     </div>

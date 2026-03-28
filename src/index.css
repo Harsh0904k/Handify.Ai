@@ -56,6 +56,31 @@
   --font-cursive-real: "cursive_real", cursive;
   --font-gh-hughes: "gh_hughes", cursive;
   --font-hindi-type: "hindi_type", cursive;
+
+  /* Modern Color Palette */
+  --color-brand-50: #f0f4ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+  --color-brand-950: #1e1b4b;
+
+  --color-surface-50: #fafafa;
+  --color-surface-100: #f4f4f5;
+  --color-surface-200: #e4e4e7;
+  --color-surface-300: #d4d4d8;
+  --color-surface-400: #a1a1aa;
+  --color-surface-500: #71717a;
+  --color-surface-600: #52525b;
+  --color-surface-700: #3f3f46;
+  --color-surface-800: #27272a;
+  --color-surface-900: #18181b;
+  --color-surface-950: #09090b;
 }
 
 @utility no-scrollbar {
@@ -66,6 +91,53 @@
   scrollbar-width: none;
 }
 
+/* Custom scrollbar for desktop */
+@media (min-width: 641px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 0px; /* Hide horizontal scrollbar */
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-200);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-surface-300);
+  }
+}
+
+/* Custom scrollbar for mobile to look like a "slider" */
+@media (max-width: 640px) {
+  ::-webkit-scrollbar {
+    display: block !important;
+    width: 12px; /* Thicker */
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(244, 244, 245, 0.8) !important; /* Semi-opaque surface-100 */
+    border-radius: 10px !important;
+    border: 1px solid var(--color-surface-200) !important;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2563eb !important; /* Vibrant Blue (Blue 600) */
+    border-radius: 10px !important;
+    border: 3px solid rgba(244, 244, 245, 0.8) !important;
+    min-height: 40px !important;
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: #1d4ed8 !important; /* Blue 700 */
+  }
+  
+  /* Ensure scrollbar is visible on elements with overflow */
+  * {
+    scrollbar-width: auto !important;
+    scrollbar-color: #2563eb rgba(244, 244, 245, 0.8) !important;
+  }
+}
+
 body {
-  @apply bg-zinc-50 text-zinc-900 antialiased;
+  @apply bg-surface-50 text-surface-900 antialiased selection:bg-brand-100 selection:text-brand-900;
 }

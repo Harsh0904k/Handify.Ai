@@ -25,6 +25,7 @@
     "react-dom": "^19.0.0",
     "react-dropzone": "^15.0.0",
     "react-konva": "^19.2.3",
+    "sonner": "^2.0.7",
     "use-image": "^1.1.4",
     "vite": "^6.2.0"
   },
