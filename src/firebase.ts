@@ -4,13 +4,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getAnalytics, logEvent } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBZuub090HiyMGGc_OA8sMi6_EsfX6CCww",
-  authDomain: "handify-ai.firebaseapp.com",
-  projectId: "handify-ai",
-  storageBucket: "handify-ai.firebasestorage.app",
-  messagingSenderId: "980518786767",
-  appId: "1:980518786767:web:76f3e9a0050da3097489ba",
-  measurementId: "G-3GC4P59VK9"
+
 };
 
 // Initialize Firebase SDK
