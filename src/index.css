@@ -41,13 +41,63 @@
 }
 
 @font-face {
-  font-family: 'Hindi Type';
-  src: url('/Hindi_Type.ttf') format('truetype');
+  font-family: 'Handwritten';
+  src: url('/handwritten.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: 'hindi_type';
-  src: url('/Hindi_Type.ttf') format('truetype');
+  font-family: 'handwritten';
+  src: url('/handwritten.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'JER';
+  src: url('/QEJER.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'jer';
+  src: url('/QEJER.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Kevin Knowles';
+  src: url('/QEKevinKnowles.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'kevin_knowles';
+  src: url('/QEKevinKnowles.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Philip Bean';
+  src: url('/QEPhilipBean.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'philip_bean';
+  src: url('/QEPhilipBean.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Royston Such CAP';
+  src: url('/QERoystonSuchCAP.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'royston_such_cap';
+  src: url('/QERoystonSuchCAP.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'cursive_real_2';
+  src: url('/QESamRoberts.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'cursive_real_3';
+  src: url('/QEScottWilliams.ttf') format('truetype');
 }
 
 @theme {
@@ -55,7 +105,13 @@
   --font-cursive-3: "cursive_3", cursive;
   --font-cursive-real: "cursive_real", cursive;
   --font-gh-hughes: "gh_hughes", cursive;
-  --font-hindi-type: "hindi_type", cursive;
+  --font-handwritten: "handwritten", cursive;
+  --font-jer: "jer", cursive;
+  --font-kevin-knowles: "kevin_knowles", cursive;
+  --font-philip-bean: "philip_bean", cursive;
+  --font-royston-such-cap: "royston_such_cap", cursive;
+  --font-cursive-real-2: "cursive_real_2", cursive;
+  --font-cursive-real-3: "cursive_real_3", cursive;
 
   /* Modern Color Palette */
   --color-brand-50: #f0f4ff;
@@ -95,7 +151,7 @@
 @media (min-width: 641px) {
   ::-webkit-scrollbar {
     width: 8px;
-    height: 0px; /* Hide horizontal scrollbar */
+    height: 6px; /* Show horizontal scrollbar so Windows users can scroll and see it */
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -109,32 +165,44 @@
   }
 }
 
-/* Custom scrollbar for mobile to look like a "slider" */
+/* Custom scrollbar for mobile to look like a "slider" and stay visible */
 @media (max-width: 640px) {
+  /* Force scrollbar visibility on WebKit browsers */
   ::-webkit-scrollbar {
+    width: 14px !important; /* Thicker for easier sliding */
+    height: 14px !important;
     display: block !important;
-    width: 12px; /* Thicker */
-    height: 12px;
-  }
-  ::-webkit-scrollbar-track {
-    background: rgba(244, 244, 245, 0.8) !important; /* Semi-opaque surface-100 */
-    border-radius: 10px !important;
-    border: 1px solid var(--color-surface-200) !important;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #2563eb !important; /* Vibrant Blue (Blue 600) */
-    border-radius: 10px !important;
-    border: 3px solid rgba(244, 244, 245, 0.8) !important;
-    min-height: 40px !important;
-  }
-  ::-webkit-scrollbar-thumb:active {
-    background: #1d4ed8 !important; /* Blue 700 */
   }
   
-  /* Ensure scrollbar is visible on elements with overflow */
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9 !important; /* Slate 100 */
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important; /* Slate 200 */
+    margin: 4px !important;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #3b82f6 !important; /* Blue 500 */
+    border-radius: 10px !important;
+    border: 3px solid #f1f5f9 !important; /* Match track for "floating" effect */
+    min-height: 80px !important; /* Taller thumb for easier grabbing */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  ::-webkit-scrollbar-thumb:active {
+    background: #2563eb !important; /* Blue 600 */
+  }
+
+  /* Ensure scrollbar is visible on all scrollable elements */
   * {
-    scrollbar-width: auto !important;
-    scrollbar-color: #2563eb rgba(244, 244, 245, 0.8) !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #3b82f6 #f1f5f9 !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Prevent OS from hiding scrollbars and ensure gutter is present */
+  html, body, main, aside, .overflow-y-auto, .overflow-y-scroll {
+    scrollbar-gutter: stable !important;
   }
 }
 

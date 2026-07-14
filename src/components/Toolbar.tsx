@@ -9,7 +9,8 @@ import {
   Minus,
   Plus,
   Palette,
-  RotateCcw
+  RotateCcw,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TextBlock, HANDWRITING_FONTS, INK_COLORS } from '../types';
@@ -71,9 +72,10 @@ const SliderControl = ({
 );
 
 export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMoveMode, isLoading, isFullscreen, className }: ToolbarProps) {
-  const [activeDropdown, setActiveDropdown] = React.useState<'font' | 'color' | null>(null);
+  const [activeDropdown, setActiveDropdown] = React.useState<'font' | 'secondaryFont' | 'color' | null>(null);
   const [isMobile, setIsMobile] = React.useState(false);
   const fontButtonRef = React.useRef<HTMLButtonElement>(null);
+  const secondaryFontButtonRef = React.useRef<HTMLButtonElement>(null);
   const colorButtonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = React.useState({ top: 0, left: 0 });
 
@@ -93,6 +95,7 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
 
   React.useEffect(() => {
     if (activeDropdown === 'font') updateDropdownPos(fontButtonRef);
+    if (activeDropdown === 'secondaryFont') updateDropdownPos(secondaryFontButtonRef);
     if (activeDropdown === 'color') updateDropdownPos(colorButtonRef);
   }, [activeDropdown]);
 
@@ -165,6 +168,18 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
 
       <div className={`w-px ${isFullscreen ? 'h-6' : 'h-8'} bg-surface-200 mx-1 shrink-0`} />
 
+      {/* Combined Font Toggle */}
+      <div className="flex items-center gap-2 shrink-0">
+        <button 
+          onClick={() => updateSelected({ isCombinedFont: !selectedBlock.isCombinedFont })}
+          className={`flex items-center gap-2 ${isFullscreen ? 'px-3 py-2' : 'px-4 py-3'} rounded-xl text-xs font-bold transition-all border ${selectedBlock.isCombinedFont ? 'bg-brand-50 border-brand-200 text-brand-600 shadow-sm' : 'bg-white border-surface-200 text-surface-600 hover:bg-surface-50'}`}
+          title="Combine two fonts for natural variance"
+        >
+          <Layers size={14} />
+          <span>{isFullscreen ? '' : 'Combine'}</span>
+        </button>
+      </div>
+
       {/* Font Family */}
       <div className="relative shrink-0">
         <button 
@@ -174,7 +189,7 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
           className={`flex items-center gap-2 ${isFullscreen ? 'px-3 py-2' : 'px-4 py-3'} hover:bg-surface-50 rounded-xl text-sm font-bold transition-all border border-surface-200 ${isFullscreen ? 'min-w-[130px]' : 'min-w-[160px]'} justify-between bg-white shadow-sm touch-manipulation cursor-pointer ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <span className={`${isFullscreen ? 'max-w-[90px]' : 'max-w-[110px]'} truncate`} style={{ fontFamily: selectedBlock.fontFamily }}>
-            {HANDWRITING_FONTS.find(f => f.value === selectedBlock.fontFamily)?.name || 'Font'}
+            {HANDWRITING_FONTS.find(f => f.value === selectedBlock.fontFamily)?.name || 'Font 1'}
           </span>
           {isLoading ? (
             <div className="w-3 h-3 border-2 border-surface-100 border-t-brand-600 rounded-full animate-spin" />
@@ -201,7 +216,7 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
                   className="relative w-full max-w-sm bg-white border border-surface-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-10"
                 >
                   <div className="p-5 border-b border-surface-100 bg-surface-50/50 flex items-center justify-between">
-                    <h3 className="font-bold text-surface-900 text-lg">Select Font</h3>
+                    <h3 className="font-bold text-surface-900 text-lg">Select Font 1</h3>
                     <button 
                       onClick={() => setActiveDropdown(null)}
                       className="p-1.5 hover:bg-surface-200 rounded-full text-surface-400 transition-colors"
@@ -260,6 +275,104 @@ export default function Toolbar({ selectedBlock, updateSelected, moveMode, setMo
           document.body
         )}
       </div>
+
+      {/* Secondary Font Family (only if combined is active) */}
+      {selectedBlock.isCombinedFont && (
+        <div className="relative shrink-0">
+          <button 
+            ref={secondaryFontButtonRef}
+            onClick={() => setActiveDropdown(activeDropdown === 'secondaryFont' ? null : 'secondaryFont')}
+            disabled={isLoading}
+            className={`flex items-center gap-2 ${isFullscreen ? 'px-3 py-2' : 'px-4 py-3'} hover:bg-surface-50 rounded-xl text-sm font-bold transition-all border border-brand-200 ${isFullscreen ? 'min-w-[130px]' : 'min-w-[160px]'} justify-between bg-brand-50/30 shadow-sm touch-manipulation cursor-pointer ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <span className={`${isFullscreen ? 'max-w-[90px]' : 'max-w-[110px]'} truncate`} style={{ fontFamily: selectedBlock.secondaryFontFamily || selectedBlock.fontFamily }}>
+              {HANDWRITING_FONTS.find(f => f.value === (selectedBlock.secondaryFontFamily || selectedBlock.fontFamily))?.name || 'Font 2'}
+            </span>
+            {isLoading ? (
+              <div className="w-3 h-3 border-2 border-surface-100 border-t-brand-600 rounded-full animate-spin" />
+            ) : (
+              <ChevronDown size={14} className={`text-brand-400 transition-transform duration-300 ${activeDropdown === 'secondaryFont' ? 'rotate-180' : ''}`} />
+            )}
+          </button>
+          {activeDropdown === 'secondaryFont' && createPortal(
+            <AnimatePresence mode="wait">
+              {isMobile ? (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setActiveDropdown(null)}
+                    className="absolute inset-0 bg-surface-950/20 backdrop-blur-[2px]"
+                  />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                    style={{ willChange: 'transform, opacity' }}
+                    className="relative w-full max-w-sm bg-white border border-surface-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-10"
+                  >
+                    <div className="p-5 border-b border-surface-100 bg-surface-50/50 flex items-center justify-between">
+                      <h3 className="font-bold text-surface-900 text-lg">Select Font 2</h3>
+                      <button 
+                        onClick={() => setActiveDropdown(null)}
+                        className="p-1.5 hover:bg-surface-200 rounded-full text-surface-400 transition-colors"
+                      >
+                        <Plus size={20} className="rotate-45" />
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto p-3">
+                      {HANDWRITING_FONTS.map(font => (
+                        <button
+                          key={font.value}
+                          onClick={() => {
+                            updateSelected({ secondaryFontFamily: font.value });
+                            setActiveDropdown(null);
+                          }}
+                          className={`w-full text-left px-5 py-5 rounded-2xl hover:bg-surface-50 text-2xl transition-all flex items-center justify-between mb-2 ${selectedBlock.secondaryFontFamily === font.value ? 'bg-brand-50 text-brand-700 font-bold shadow-sm' : 'text-surface-600'}`}
+                          style={{ fontFamily: font.value }}
+                        >
+                          <span>{font.name}</span>
+                          {selectedBlock.secondaryFontFamily === font.value && <div className="w-2.5 h-2.5 bg-brand-600 rounded-full shadow-lg shadow-brand-200" />}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+              ) : (
+                <>
+                  <div className="fixed inset-0 z-[190]" onClick={() => setActiveDropdown(null)} />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    style={{ top: dropdownPos.top, left: dropdownPos.left }}
+                    className="fixed w-64 bg-white border border-surface-200 rounded-2xl shadow-xl z-[200] overflow-hidden flex flex-col max-h-[300px]"
+                  >
+                    <div className="overflow-y-auto p-2">
+                      {HANDWRITING_FONTS.map(font => (
+                        <button
+                          key={font.value}
+                          onClick={() => {
+                            updateSelected({ secondaryFontFamily: font.value });
+                            setActiveDropdown(null);
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-xl hover:bg-surface-50 text-lg transition-all flex items-center justify-between mb-1 ${selectedBlock.secondaryFontFamily === font.value ? 'bg-brand-50 text-brand-700 font-bold' : 'text-surface-600'}`}
+                          style={{ fontFamily: font.value }}
+                        >
+                          <span>{font.name}</span>
+                          {selectedBlock.secondaryFontFamily === font.value && <div className="w-2 h-2 bg-brand-600 rounded-full" />}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>,
+            document.body
+          )}
+        </div>
+      )}
 
       {/* Font Size */}
       <div className={`flex items-center bg-surface-50 border border-surface-200 rounded-xl ${isFullscreen ? 'p-0.5' : 'p-1'} shadow-sm shrink-0`}>

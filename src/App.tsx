@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useDropzone } from 'react-dropzone';
-import { logAnalyticsEvent, auth, db } from './firebase.ts';
+import { logAnalyticsEvent, auth, db } from './firebase';
 import { 
   Plus, 
   Download, 
@@ -28,7 +28,11 @@ import {
   Sparkles,
   Monitor,
   Maximize,
-  Minimize
+  Minimize,
+  Check,
+  Minus,
+  Palette,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast, Toaster } from 'sonner';
@@ -46,7 +50,7 @@ import {
 } from 'firebase/auth';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
-import { TextBlock, HANDWRITING_FONTS, INK_COLORS, Margins, Boundary, Point } from './types';
+import { TextBlock, HANDWRITING_FONTS, INK_COLORS, PAGE_BACKGROUNDS, Margins, Boundary, Point } from './types';
 import { useDebounce } from './hooks/useDebounce';
 
 // --- Firestore Error Handling ---
@@ -131,13 +135,18 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
     setIsSubmitting(true);
     try {
       const path = 'feedback';
-      await addDoc(collection(db, path), {
+      const feedbackData: any = {
         content: feedback,
         type,
         createdAt: serverTimestamp(),
-        uid: user?.uid || null,
         email: email,
-      });
+      };
+      
+      if (user?.uid) {
+        feedbackData.uid = user.uid;
+      }
+
+      await addDoc(collection(db, path), feedbackData);
       setFeedback('');
       setSubmitted(true);
       setTimeout(() => {
@@ -156,7 +165,7 @@ function FeedbackSection({ user, onClose }: { user: User | null, onClose: () => 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-white overflow-y-auto"
+      className="fixed inset-0 z-[100] bg-white overflow-y-scroll"
     >
       <div className="min-h-full flex flex-col items-center justify-start md:justify-center p-6 md:p-12">
         <button 
@@ -277,7 +286,7 @@ function HelpSection({ onClose }: { onClose: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-white overflow-y-auto"
+      className="fixed inset-0 z-[100] bg-white overflow-y-scroll"
     >
       <div className="min-h-full flex flex-col items-center p-6 md:p-12">
         <button 
@@ -297,12 +306,12 @@ function HelpSection({ onClose }: { onClose: () => void }) {
             <p className="text-xl text-surface-500 max-w-2xl mx-auto leading-relaxed">
               Everything you need to know to create the most realistic digital handwriting ever.
             </p>
-            <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl max-w-2xl mx-auto flex items-center gap-3 text-amber-800">
-              <div className="shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
-                <Monitor size={16} />
+            <div className="mt-8 p-4 bg-brand-50 border border-brand-200 rounded-2xl max-w-2xl mx-auto flex items-center gap-3 text-brand-800">
+              <div className="shrink-0 w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center text-brand-600">
+                <Sparkles size={16} />
               </div>
               <p className="text-sm font-medium text-left">
-                <strong>Pro Tip:</strong> Use on laptop for better experience, phone version is currently under testing phase.
+                <strong>Optimized for Mobile:</strong> Handify.ai is fully optimized for touch controls on Android and other mobile browsers!
               </p>
             </div>
           </div>
@@ -469,9 +478,9 @@ function WelcomeModal({ onOpenHelp, onClose }: { onOpenHelp: () => void, onClose
             <p className="text-lg text-surface-500 leading-relaxed">
               Transform your digital text into hyper-realistic handwriting on real paper. Ready to start?
             </p>
-            <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-center gap-3 text-amber-800 text-xs font-medium">
-              <Monitor size={14} className="shrink-0" />
-              <p className="text-left">Use on laptop for better experience, phone version is currently under testing phase.</p>
+            <div className="p-3 bg-brand-50 border border-brand-100 rounded-xl flex items-center gap-3 text-brand-800 text-xs font-medium">
+              <Sparkles size={14} className="shrink-0 text-brand-600" />
+              <p className="text-left"><strong>Optimized for Mobile:</strong> Handify.ai is now fully optimized for Android & iOS mobile browsers!</p>
             </div>
           </div>
 
@@ -499,6 +508,50 @@ function WelcomeModal({ onOpenHelp, onClose }: { onOpenHelp: () => void, onClose
     </motion.div>
   );
 }
+
+const SidebarSliderControl = ({ 
+  label, 
+  value, 
+  min, 
+  max, 
+  step, 
+  onChange, 
+  onReset,
+  unit = ""
+}: { 
+  label: string; 
+  value: number; 
+  min: number; 
+  max: number; 
+  step: number; 
+  onChange: (val: number) => void;
+  onReset: () => void;
+  unit?: string;
+}) => (
+  <div className="flex flex-col gap-1.5 py-1">
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] font-bold text-surface-400 uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] font-mono font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded border border-brand-100">{value.toFixed(1)}{unit}</span>
+        <button 
+          onClick={onReset}
+          className="p-1 hover:bg-surface-100 rounded text-surface-400 hover:text-brand-600 transition-colors"
+          title={`Reset ${label}`}
+        >
+          <RotateCcw size={10} />
+        </button>
+      </div>
+    </div>
+    <input 
+      type="range" min={min} max={max} step={step}
+      value={value}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      className="w-full h-2 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-brand-600 touch-none"
+    />
+  </div>
+);
 
 export default function App() {
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
@@ -531,6 +584,7 @@ export default function App() {
   const debouncedBoundary = useDebounce(boundary, 200);
   
   const stageRefs = useRef<any[]>([]);
+  const templatesRef = useRef<HTMLDivElement>(null);
 
   const [isExporting, setIsExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -542,7 +596,9 @@ export default function App() {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<'canvas' | 'text' | 'settings'>('canvas');
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [isTemplateLoading, setIsTemplateLoading] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pageOffsets, setPageOffsets] = useState<{[key: number]: Point}>({});
   const prevImageRef = useRef<string | null>(null);
@@ -602,6 +658,80 @@ export default function App() {
     setIsHelpOpen(true);
   };
 
+  const handleImageLoad = useCallback((url: string, fileName: string = 'image', fileSize: number = 0) => {
+    setIsImageLoading(true);
+    setIsTemplateLoading(url);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    let retryCount = 0;
+    const maxRetries = isMobile ? 3 : 1;
+
+    const loadImage = (currentUrl: string) => {
+      const img = new Image();
+      if (!currentUrl.startsWith('data:') && !currentUrl.startsWith('blob:')) {
+        img.crossOrigin = "anonymous";
+      }
+      
+      const handleLoad = () => {
+        setImageDimensions({ width: img.width, height: img.height });
+        setBackgroundImage(currentUrl);
+        
+        const w = 3000;
+        const scale = w / img.width;
+        const h = img.height * scale;
+        
+        setBoundary({
+          topLeft: { x: w * 0.1, y: h * 0.1 },
+          topRight: { x: w * 0.9, y: h * 0.1 },
+          bottomLeft: { x: w * 0.1, y: h * 0.9 },
+          bottomRight: { x: w * 0.9, y: h * 0.9 }
+        });
+        setIsCalibrating(true);
+        setIsImageLoading(false);
+        setIsTemplateLoading(null);
+        toast.success("Background set successfully!");
+        
+        img.removeEventListener('load', handleLoad);
+        img.removeEventListener('error', handleError);
+      };
+
+      const handleError = () => {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.warn(`Retrying image load (${retryCount}/${maxRetries}) for ${fileName}...`);
+          setTimeout(() => loadImage(currentUrl), 800);
+          return;
+        }
+
+        setIsImageLoading(false);
+        setIsTemplateLoading(null);
+        if (currentUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(currentUrl);
+        }
+        console.error("Failed to load image:", fileName, fileSize);
+        toast.error("Failed to load image. Please try a different template or check your connection.");
+        
+        img.removeEventListener('load', handleLoad);
+        img.removeEventListener('error', handleError);
+      };
+
+      img.addEventListener('load', handleLoad);
+      img.addEventListener('error', handleError);
+
+      const delay = isMobile ? 300 : 50;
+      setTimeout(() => {
+        img.src = currentUrl;
+        
+        if ('decode' in img) {
+          (img as any).decode().catch((err: any) => {
+            console.warn("Image decode failed, falling back to standard load:", err);
+          });
+        }
+      }, delay);
+    };
+
+    loadImage(url);
+  }, []);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
@@ -617,83 +747,15 @@ export default function App() {
         return;
       }
 
-      setIsImageLoading(true);
       logAnalyticsEvent('image_upload', {
         file_type: file.type,
         file_size: file.size
       });
 
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const imageUrl = URL.createObjectURL(file);
-      let retryCount = 0;
-      const maxRetries = isMobile ? 1 : 0;
-
-      const loadImage = (url: string) => {
-        const img = new Image();
-        
-        const handleLoad = () => {
-          setImageDimensions({ width: img.width, height: img.height });
-          setBackgroundImage(url);
-          
-          // Initialize boundary based on fixed internal width (3000px for high quality)
-          const w = 3000;
-          const scale = w / img.width;
-          const h = img.height * scale;
-          
-          setBoundary({
-            topLeft: { x: w * 0.1, y: h * 0.1 },
-            topRight: { x: w * 0.9, y: h * 0.1 },
-            bottomLeft: { x: w * 0.1, y: h * 0.9 },
-            bottomRight: { x: w * 0.9, y: h * 0.9 }
-          });
-          setIsCalibrating(true);
-          setIsImageLoading(false);
-          toast.success("Image uploaded successfully!");
-          
-          // Cleanup listeners
-          img.removeEventListener('load', handleLoad);
-          img.removeEventListener('error', handleError);
-        };
-
-        const handleError = () => {
-          if (retryCount < maxRetries) {
-            retryCount++;
-            console.warn(`Retrying image load (${retryCount}/${maxRetries})...`);
-            setTimeout(() => loadImage(url), 500);
-            return;
-          }
-
-          setIsImageLoading(false);
-          URL.revokeObjectURL(url);
-          console.error("Failed to load image:", file.name, file.type, file.size);
-          toast.error("Failed to load image. The file might be corrupted or too large for your browser.");
-          
-          // Cleanup listeners
-          img.removeEventListener('load', handleLoad);
-          img.removeEventListener('error', handleError);
-        };
-
-        img.addEventListener('load', handleLoad);
-        img.addEventListener('error', handleError);
-
-        // Small delay to allow browser to settle, especially on mobile
-        const delay = isMobile ? 200 : 50;
-        setTimeout(() => {
-          img.src = url;
-          
-          // Use decode() if available for smoother loading, but skip for very large images on mobile to save memory
-          const shouldDecode = !isMobile || file.size < 5 * 1024 * 1024;
-          if (shouldDecode && 'decode' in img) {
-            (img as any).decode().catch((err: any) => {
-              console.warn("Image decode failed, falling back to standard load:", err);
-            });
-          }
-        }, delay);
-      };
-
-      loadImage(imageUrl);
+      handleImageLoad(imageUrl, file.name, file.size);
     }
-  }, [backgroundImage]);
+  }, [handleImageLoad]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -1130,10 +1192,18 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4"
+            className="fixed inset-0 z-[200] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center gap-4"
           >
-            <Loader2 size={48} className="text-brand-600 animate-spin" />
-            <p className="text-lg font-bold text-surface-900">Processing your image...</p>
+            <div className="relative">
+              <Loader2 size={48} className="text-brand-600 animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-4 h-4 bg-brand-200 rounded-full animate-pulse" />
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-lg font-bold text-surface-900">Setting up your page...</p>
+              <p className="text-xs text-surface-400 font-medium animate-pulse">This might take a moment on slower connections</p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1188,6 +1258,7 @@ export default function App() {
                   textBlocks={[]}
                   selectedIds={[]}
                   isRealistic={isRealisticMode}
+                  isCharVariance={isCharVariance}
                   onSelect={() => {}}
                   onChange={() => {}}
                   stageRef={() => {}}
@@ -1216,13 +1287,16 @@ export default function App() {
       {/* Sticky Top Bar Container */}
       <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-surface-200">
         {/* Header */}
-        <header className={`px-4 md:px-6 ${isFullscreen ? 'py-1.5 md:py-2' : 'py-3 md:py-4'} flex items-center justify-between relative z-20`}>
+        <header className={`px-3 md:px-6 ${isFullscreen ? 'py-1 md:py-2' : 'py-1.5 sm:py-3 md:py-4'} flex items-center justify-between relative z-20`}>
           <div className="flex items-center gap-2 md:gap-3">
-            <div className={`${isFullscreen ? 'w-6 h-6 md:w-8 md:h-8' : 'w-8 h-8 md:w-10 md:h-10'} bg-surface-900 rounded-xl flex items-center justify-center text-white overflow-hidden shadow-lg shadow-surface-200`}>
+            <div className={`${isFullscreen ? 'w-6 h-6 md:w-8 md:h-8' : 'w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10'} bg-surface-900 rounded-xl flex items-center justify-center text-white overflow-hidden shadow-lg shadow-surface-200`}>
               <img src="/logo_64.png" alt="Handify.ai Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div>
-              <h1 className={`font-bold ${isFullscreen ? 'text-sm md:text-base' : 'text-base md:text-lg'} tracking-tight text-surface-900`}>Handify.ai - Text to Handwriting</h1>
+              <h1 className={`font-bold ${isFullscreen ? 'text-xs md:text-base' : 'text-sm sm:text-base md:text-lg'} tracking-tight text-surface-900 line-height-none`}>
+                <span className="sm:hidden">Handify A.i</span>
+                <span className="hidden sm:inline">Handify.ai - Text to Handwriting</span>
+              </h1>
               {!isFullscreen && <p className="text-[10px] text-surface-500 font-bold uppercase tracking-widest hidden sm:block">Realistic Handwriting Converter</p>}
             </div>
           </div>
@@ -1252,24 +1326,24 @@ export default function App() {
             </p>
           </div>
           
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 md:gap-2">
               <div className="relative">
                 <button 
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                  className={`${isFullscreen ? 'px-2 md:px-3 py-1.5' : 'px-3 md:px-5 py-2'} bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-100 flex items-center gap-2 disabled:opacity-50 cursor-pointer touch-manipulation`}
+                  className={`${isFullscreen ? 'px-2 py-1' : 'px-2.5 sm:px-3 md:px-5 py-1.5 sm:py-2'} bg-brand-600 text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-brand-700 active:scale-95 transition-all shadow-lg shadow-brand-100 flex items-center gap-1 sm:gap-2 disabled:opacity-50 cursor-pointer touch-manipulation`}
                   disabled={isExporting || !backgroundImage || (bulkText && pages.length === 0)}
                 >
-                  <Download size={isFullscreen ? 16 : 18} />
-                  {isExporting ? 'Processing...' : (pages.length > 0 ? (isFullscreen ? pages.length : `Export ${pages.length}`) : 'Export')}
-                  <ChevronDown size={14} className={`transition-transform duration-300 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                  <Download size={isFullscreen ? 14 : 16} />
+                  {isExporting ? '...' : (pages.length > 0 ? (isFullscreen ? pages.length : `Export ${pages.length}`) : 'Export')}
+                  <ChevronDown size={12} className={`transition-transform duration-300 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
               </div>
               <button 
                 onClick={() => setIsHelpOpen(true)}
-                className={`${isFullscreen ? 'p-1.5' : 'p-2.5'} hover:bg-surface-100 rounded-xl text-surface-500 transition-colors`}
+                className={`${isFullscreen ? 'p-1' : 'p-1.5 sm:p-2.5'} hover:bg-surface-100 rounded-xl text-surface-500 transition-colors`}
                 title="Help"
               >
-                <HelpCircle size={isFullscreen ? 16 : 18} />
+                <HelpCircle size={isFullscreen ? 14 : 18} />
               </button>
               <button 
                 onClick={toggleFullscreen}
@@ -1280,10 +1354,10 @@ export default function App() {
               </button>
               <button 
                 onClick={resetAll}
-                className={`${isFullscreen ? 'p-1.5' : 'p-2.5'} hover:bg-surface-100 rounded-xl text-surface-500 transition-colors`}
+                className={`${isFullscreen ? 'p-1' : 'p-1.5 sm:p-2.5'} hover:bg-surface-100 rounded-xl text-surface-500 transition-colors`}
                 title="Reset"
               >
-                <RotateCcw size={isFullscreen ? 16 : 18} />
+                <RotateCcw size={isFullscreen ? 14 : 18} />
               </button>
             </div>
         </header>
@@ -1302,7 +1376,7 @@ export default function App() {
         />
       </div>
 
-      <main className={`flex-1 flex flex-col lg:flex-row ${isFullscreen ? 'overflow-hidden' : 'overflow-y-auto lg:overflow-hidden overflow-x-hidden'} relative lg:scrollbar-auto`}>
+      <main className={`flex-1 flex flex-col lg:flex-row ${isFullscreen ? 'overflow-hidden' : 'overflow-y-scroll lg:overflow-hidden overflow-x-hidden'} relative lg:scrollbar-auto`}>
         {/* Layout & Export Loading Overlay */}
         <AnimatePresence>
           {(isLayoutLoading || isExporting) && (
@@ -1334,7 +1408,7 @@ export default function App() {
 
         {/* Left: Canvas Area */}
         <div 
-          className={`flex-1 ${isFullscreen ? 'p-2 md:p-4 overflow-y-auto' : 'p-4 md:p-6 lg:overflow-y-auto'} flex flex-col items-center ${isFullscreen ? 'gap-4' : 'gap-6 md:gap-8'}`} 
+          className={`flex-1 ${isFullscreen ? 'p-2 md:p-4 overflow-y-scroll' : 'p-4 md:p-6 lg:overflow-y-auto'} ${activeMobileTab === 'canvas' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'} items-center ${isFullscreen ? 'gap-4' : 'gap-6 md:gap-8'}`} 
           {...getRootProps()}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -1387,7 +1461,7 @@ export default function App() {
                 {pages.map((pageBlocks, idx) => (
                   <div 
                     key={idx} 
-                    className={`w-full canvas-container transition-opacity duration-300 ${
+                    className={`w-full h-[60vh] sm:h-[75vh] md:h-[80vh] max-h-[850px] aspect-[1/1.4] sm:aspect-auto canvas-container transition-opacity duration-300 ${
                       (currentPageIndex === idx || isExporting) ? 'block opacity-100' : 'hidden sm:block opacity-0 sm:opacity-100'
                     }`}
                   >
@@ -1450,12 +1524,13 @@ export default function App() {
               </div>
             </div>
           ) : (
-              <div className="w-full max-w-4xl canvas-container">
+              <div className="w-full h-[60vh] sm:h-[75vh] md:h-[80vh] max-h-[850px] aspect-[1/1.4] sm:aspect-auto canvas-container">
                   <Canvas 
                     backgroundImage={backgroundImage}
                     textBlocks={textBlocks}
                     selectedIds={selectedIds}
                     isRealistic={isRealisticMode}
+                    isCharVariance={isCharVariance}
                     onSelect={(id, multi) => {
                       if (!id) {
                         setSelectedIds([]);
@@ -1484,144 +1559,502 @@ export default function App() {
               </div>
             )}
           
-          {!backgroundImage && (
-            <div className={`w-full max-w-4xl border-2 border-dashed rounded-2xl p-12 text-center transition-all ${isDragActive ? 'border-brand-500 bg-brand-50/30' : 'border-surface-200 bg-white'}`}>
-              <div className="w-16 h-16 bg-surface-50 rounded-full flex items-center justify-center mx-auto mb-4 text-surface-400">
-                <ImageIcon size={32} />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-surface-900">Upload your page photo</h3>
-              <p className="text-surface-500 mb-6 max-w-xs mx-auto">Take a photo of a notebook page or a blank sheet and drop it here.</p>
-              <button 
-                onClick={open}
-                className="bg-white border border-surface-200 px-6 py-2 rounded-xl font-medium hover:bg-surface-50 transition-all shadow-sm text-surface-700"
-              >
-                Select Photo
-              </button>
+          <div className="w-full max-w-4xl space-y-8 md:space-y-12">
+
+
+            <div {...getRootProps()} className="hidden">
+              <input {...getInputProps()} />
             </div>
-          )}
+            {!backgroundImage && (
+              <div {...getRootProps()} className={`w-full border-2 border-dashed rounded-[32px] p-12 md:p-20 text-center transition-all cursor-pointer group ${isDragActive ? 'border-brand-500 bg-brand-50/30' : 'border-surface-200 bg-white hover:border-brand-300 hover:bg-surface-50'}`}>
+                <input {...getInputProps()} />
+                <div className="w-20 h-20 bg-brand-50 text-brand-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-500 shadow-sm">
+                  <ImageIcon size={40} />
+                </div>
+                <h3 className="text-2xl font-bold mb-3 text-surface-900 tracking-tight">Upload your page photo</h3>
+                <p className="text-surface-500 mb-8 max-w-sm mx-auto leading-relaxed">
+                  Take a photo of your notebook or any paper. We'll use it as the canvas for your handwriting.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      open();
+                    }}
+                    className="w-full sm:w-auto px-8 py-4 bg-brand-600 text-white rounded-2xl font-bold text-base hover:bg-brand-700 transition-all shadow-xl shadow-brand-200/50"
+                  >
+                    Select from Device
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      templatesRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="w-full sm:w-auto px-8 py-4 bg-white border-2 border-brand-200 text-brand-600 rounded-2xl font-bold text-base hover:bg-brand-50 transition-all shadow-sm"
+                  >
+                    Select from Default Page
+                  </button>
+                </div>
+                <span className="hidden sm:inline-block text-xs font-bold text-surface-400 uppercase tracking-widest mt-6">or drag & drop</span>
+              </div>
+            )}
+
+            <div ref={templatesRef} className="space-y-8">
+              <div className="flex items-center gap-4">
+                <div className="h-px flex-1 bg-surface-200" />
+                <h4 className="text-xs font-bold text-surface-400 uppercase tracking-widest">Page Templates</h4>
+                <div className="h-px flex-1 bg-surface-200" />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {PAGE_BACKGROUNDS.map((bg) => (
+                  <button
+                    key={bg.value}
+                    disabled={isTemplateLoading === bg.value}
+                    onClick={() => handleImageLoad(bg.value, bg.name)}
+                    className={`group relative aspect-[4/3] rounded-[32px] overflow-hidden border-2 transition-all shadow-sm hover:shadow-2xl hover:shadow-brand-100/50 ${backgroundImage === bg.value ? 'border-brand-500 ring-4 ring-brand-50' : 'border-surface-200 hover:border-brand-500'} ${isTemplateLoading === bg.value ? 'opacity-80' : ''}`}
+                  >
+                    <img src={bg.value} alt={bg.name} className={`w-full h-full object-cover transition-all duration-700 ${isTemplateLoading === bg.value ? 'scale-105 blur-sm' : 'group-hover:scale-110'}`} referrerPolicy="no-referrer" />
+                    <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity ${backgroundImage === bg.value ? 'opacity-40' : 'opacity-60 group-hover:opacity-100'}`} />
+                    
+                    {isTemplateLoading === bg.value && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-brand-900/40 backdrop-blur-sm">
+                        <Loader2 className="text-white animate-spin" size={32} />
+                      </div>
+                    )}
+
+                    <div className="absolute inset-0 flex flex-col justify-end p-8">
+                      <span className="text-white text-xl font-bold tracking-tight">{bg.name}</span>
+                      <span className="text-white/60 text-xs font-medium uppercase tracking-widest mt-1">
+                        {isTemplateLoading === bg.value ? 'Loading Template...' : 'Ready to use template'}
+                      </span>
+                    </div>
+                    {backgroundImage === bg.value ? (
+                      <div className="absolute top-6 right-6 w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center text-white shadow-lg">
+                        <Check size={20} />
+                      </div>
+                    ) : !isTemplateLoading && (
+                      <div className="absolute top-6 right-6 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                        <Plus size={20} />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Highly Polished visible SEO & Feature Guide section for Google Ranking and User onboarding */}
+            {!backgroundImage && (
+              <div className="space-y-12 pt-12 border-t border-surface-200">
+                {/* Introduction Header */}
+                <div className="text-center space-y-4 max-w-2xl mx-auto">
+                  <h2 className="text-3xl md:text-4xl font-black text-surface-900 tracking-tight">
+                    The #1 Text to Handwriting AI Converter
+                  </h2>
+                  <p className="text-base md:text-lg text-surface-500 leading-relaxed">
+                    Convert digital files, essays, and text documents into realistic handwriting instantly. Handify.ai uses intelligent layout rendering and organic font curves to mimic actual human penmanship perfectly.
+                  </p>
+                </div>
+
+                {/* Features Bento Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-8 bg-white border border-surface-200 rounded-[32px] hover:shadow-xl transition-all space-y-4">
+                    <div className="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <Sparkles size={24} />
+                    </div>
+                    <h3 className="text-xl font-bold text-surface-900">Advanced Handwriting AI</h3>
+                    <p className="text-surface-500 text-sm leading-relaxed">
+                      Our handwriting generator utilizes organic variation algorithms to guarantee that letter styling, spacing, and word rotation are subtly varied—making it completely indistinguishable from real handwriting.
+                    </p>
+                  </div>
+
+                  <div className="p-8 bg-white border border-surface-200 rounded-[32px] hover:shadow-xl transition-all space-y-4">
+                    <div className="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <Palette size={24} />
+                    </div>
+                    <h3 className="text-xl font-bold text-surface-900">Custom Ink & Paper Styles</h3>
+                    <p className="text-surface-500 text-sm leading-relaxed">
+                      Choose from royal blue, dark blue, black, or red ink. Align your text exactly to any custom notebook photo background or select our pre-configured college ruled template sheets with ease.
+                    </p>
+                  </div>
+
+                  <div className="p-8 bg-white border border-surface-200 rounded-[32px] hover:shadow-xl transition-all space-y-4">
+                    <div className="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <Layers size={24} />
+                    </div>
+                    <h3 className="text-xl font-bold text-surface-900">Multi-Page Bulk Conversions</h3>
+                    <p className="text-surface-500 text-sm leading-relaxed">
+                      Paste thousands of words at once. Our engine automatically splits paragraphs, manages line overflows, and creates continuous handwritten PDF pages without any cutoffs.
+                    </p>
+                  </div>
+
+                  <div className="p-8 bg-white border border-surface-200 rounded-[32px] hover:shadow-xl transition-all space-y-4">
+                    <div className="w-12 h-12 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <Download size={24} />
+                    </div>
+                    <h3 className="text-xl font-bold text-surface-900">High-Resolution PDF Export</h3>
+                    <p className="text-surface-500 text-sm leading-relaxed">
+                      Export your assignments, creative journal writing, or letters directly to pristine PDF documents or high-fidelity JPG formats, completely optimized for digital submission.
+                    </p>
+                  </div>
+                </div>
+
+                {/* FAQ Section */}
+                <div className="space-y-8 bg-surface-50 border border-surface-100 p-8 md:p-12 rounded-[40px]">
+                  <h3 className="text-2xl font-black text-surface-900 tracking-tight text-center">
+                    Frequently Asked Questions
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-4">
+                    <div className="space-y-2">
+                      <h4 className="text-base font-bold text-surface-900">Is this the best text to handwriting AI?</h4>
+                      <p className="text-sm text-surface-500 leading-relaxed">
+                        Yes! Handify.ai is recognized as a leading <strong>text to handwriting AI</strong>. It uses custom natural-curve cursive fonts and spacing variations to make your converted digital text look exactly like authentic human penmanship.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-base font-bold text-surface-900">How does the handwriting generator vary the text?</h4>
+                      <p className="text-sm text-surface-500 leading-relaxed">
+                        To look like a real human wrote it, Handify.ai allows you to enable <strong>Character Variance</strong> and custom line <strong>Tilt / Rotation</strong>. This prevents identical characters (like 'e' or 'o') from looking completely identical, matching organic pen stroke variance.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-base font-bold text-surface-900">Can I upload my own notebook photo?</h4>
+                      <p className="text-sm text-surface-500 leading-relaxed">
+                        Absolutely. Take a high-quality picture of your actual notebook under good lighting, upload it as a custom background, and use our margin calibrator to align the generated ink with your paper's lines.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-base font-bold text-surface-900">Is this handwriting converter safe and free?</h4>
+                      <p className="text-sm text-surface-500 leading-relaxed">
+                        Yes, Handify.ai is 100% free and secure. All processing runs right inside your web browser or server-side sandbox, ensuring your data is private. There are no watermarks or hidden charges.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: Sidebar Controls */}
-        <aside className={`w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-surface-200 ${isFullscreen ? 'p-3 md:p-4 overflow-y-auto' : 'p-4 md:p-6 lg:overflow-y-auto'}`}>
-          <div className={`${isFullscreen ? 'space-y-4 md:space-y-5' : 'space-y-6 md:space-y-8'}`}>
-            {/* Mode Controls */}
-            <div className={`${isFullscreen ? 'space-y-2' : 'space-y-4'}`}>
-              {backgroundImage && (
-                <div className="grid grid-cols-1 gap-2">
-                  <button 
-                    onClick={() => setIsCalibrating(true)}
-                    className={`flex items-center justify-center gap-2 ${isFullscreen ? 'py-2' : 'py-3'} bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-200/50`}
-                  >
-                    <Layout size={16} />
-                    <span>Calibrate Page Boundary</span>
-                  </button>
-                  <button 
-                    onClick={open}
-                    className={`flex items-center justify-center gap-2 ${isFullscreen ? 'py-2' : 'py-3'} bg-white border border-surface-200 text-surface-900 rounded-xl text-xs font-bold hover:bg-surface-50 transition-all shadow-sm`}
-                  >
-                    <ImagePlus size={16} />
-                    <span>Change Background</span>
-                  </button>
+        <aside className={`w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-l border-surface-200 ${
+          activeMobileTab === 'settings' ? 'block overflow-y-auto flex-1' : 'hidden lg:block lg:overflow-y-scroll'
+        } ${isFullscreen ? 'p-3 md:p-4' : 'p-4 md:p-6'}`}>
+          {(() => {
+            const isEditingSelection = (selectedIds.length > 0 || moveMode === 'all') && effectiveSelectedBlock;
+            const targetSettings = isEditingSelection ? effectiveSelectedBlock : layoutTemplate;
+            const updateSettings = (updates: Partial<TextBlock>) => {
+              if (isEditingSelection) {
+                updateSelected(updates);
+              } else {
+                setLayoutTemplate(prev => ({ ...prev, ...updates }));
+              }
+            };
+
+            return (
+              <div className={`${isFullscreen ? 'space-y-4 md:space-y-5' : 'space-y-6 md:space-y-8'}`}>
+                {/* Mode Controls */}
+                <div className={`${isFullscreen ? 'space-y-2' : 'space-y-4'}`}>
+                  {backgroundImage && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-2">
+                        <button 
+                          onClick={() => setIsCalibrating(true)}
+                          className={`flex items-center justify-center gap-2 ${isFullscreen ? 'py-2' : 'py-3'} bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-200/50 cursor-pointer`}
+                        >
+                          <Layout size={16} />
+                          <span>Calibrate Page Boundary</span>
+                        </button>
+                        <button 
+                          onClick={open}
+                          className={`flex items-center justify-center gap-2 ${isFullscreen ? 'py-2' : 'py-3'} bg-white border border-surface-200 text-surface-900 rounded-xl text-xs font-bold hover:bg-surface-50 transition-all shadow-sm cursor-pointer`}
+                        >
+                          <ImagePlus size={16} />
+                          <span>Upload New Background</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className={`${isFullscreen ? 'space-y-3 md:space-y-4' : 'space-y-4 md:space-y-6'}`}>
-              {/* Bulk Text Input */}
-              <div className="space-y-2">
-                <label className="text-[10px] md:text-xs font-bold text-surface-400 uppercase tracking-wider">Bulk Content</label>
-                <textarea 
-                  value={bulkText}
-                  onChange={(e) => setBulkText(e.target.value)}
-                  className={`w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none ${isFullscreen ? 'min-h-[100px] md:min-h-[150px]' : 'min-h-[120px] md:min-h-[200px]'} text-sm`}
-                  placeholder="Paste your long text here..."
-                />
-              </div>
+                <div className={`${isFullscreen ? 'space-y-3 md:space-y-4' : 'space-y-4 md:space-y-6'}`}>
+                  {/* Bulk Text Input (Desktop Only) */}
+                  <div className="space-y-2 hidden lg:block">
+                    <label className="text-[10px] md:text-xs font-bold text-surface-400 uppercase tracking-wider">Bulk Content</label>
+                    <textarea 
+                      value={bulkText}
+                      onChange={(e) => setBulkText(e.target.value)}
+                      className={`w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none ${isFullscreen ? 'min-h-[100px] md:min-h-[150px]' : 'min-h-[120px] md:min-h-[200px]'} text-sm`}
+                      placeholder="Paste your long text here..."
+                    />
+                  </div>
 
-              <div className="h-px bg-surface-100" />
+                  <div className="hidden lg:block h-px bg-surface-100" />
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-2 md:gap-3">
-                <button 
-                  onClick={addTextBlock}
-                  disabled={!backgroundImage}
-                  className={`flex items-center justify-center gap-2 bg-brand-600 text-white ${isFullscreen ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} rounded-xl text-sm font-medium hover:bg-brand-700 transition-all disabled:opacity-50 shadow-lg shadow-brand-200/30`}
-                >
-                  <Plus size={18} />
-                  <span>Add Text</span>
-                </button>
-                <button 
-                  onClick={deleteSelected}
-                  disabled={selectedIds.length === 0}
-                  className={`flex items-center justify-center gap-2 bg-surface-100 text-surface-600 ${isFullscreen ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} rounded-xl text-sm font-medium hover:bg-surface-200 transition-all disabled:opacity-50`}
-                >
-                  <Trash2 size={18} />
-                  <span>Delete</span>
-                </button>
-              </div>
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2 md:gap-3">
+                    <button 
+                      onClick={addTextBlock}
+                      disabled={!backgroundImage}
+                      className={`flex items-center justify-center gap-2 bg-brand-600 text-white ${isFullscreen ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} rounded-xl text-sm font-medium hover:bg-brand-700 transition-all disabled:opacity-50 shadow-lg shadow-brand-200/30 cursor-pointer`}
+                    >
+                      <Plus size={18} />
+                      <span>Add Text</span>
+                    </button>
+                    <button 
+                      onClick={deleteSelected}
+                      disabled={selectedIds.length === 0}
+                      className={`flex items-center justify-center gap-2 bg-surface-100 text-surface-600 ${isFullscreen ? 'p-2 md:p-2.5' : 'p-2.5 md:p-3'} rounded-xl text-sm font-medium hover:bg-surface-200 transition-all disabled:opacity-50 cursor-pointer`}
+                    >
+                      <Trash2 size={18} />
+                      <span>Delete</span>
+                    </button>
+                  </div>
 
-              <AnimatePresence mode="wait">
-                {(selectedIds.length > 0 || moveMode === 'all') && effectiveSelectedBlock ? (
-                  <motion.div 
-                    key="controls"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className={`${isFullscreen ? 'space-y-4' : 'space-y-6'}`}
-                  >
-                    <div className="h-px bg-surface-100" />
-                    
-                    {/* Text Input */}
+                  <div className="h-px bg-surface-100" />
+
+                  {/* Settings Title / Context */}
+                  <div className="bg-surface-50 border border-surface-100 p-3 rounded-2xl">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-surface-400 uppercase tracking-widest">
+                        {isEditingSelection ? 'Editing Selection' : 'Default Page Layout'}
+                      </span>
+                      <span className="text-[9px] font-bold text-brand-600 bg-brand-50 border border-brand-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {isEditingSelection ? 'Custom Block' : 'Global Presets'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-surface-500 mt-1 font-medium leading-relaxed">
+                      {isEditingSelection 
+                        ? 'Tweak parameters specifically for selected blocks.' 
+                        : 'Newly split text pages immediately adopt these global parameters.'}
+                    </p>
+                  </div>
+
+                  {/* Text Block Content Input (only when block selected) */}
+                  {isEditingSelection && (
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Content</label>
                       <textarea 
-                        value={effectiveSelectedBlock.text}
-                        onChange={(e) => updateSelected({ text: e.target.value })}
-                        className={`w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none ${isFullscreen ? 'min-h-[100px]' : 'min-h-[150px]'} text-sm`}
+                        value={targetSettings.text || ''}
+                        onChange={(e) => updateSettings({ text: e.target.value })}
+                        className={`w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none ${isFullscreen ? 'min-h-[80px]' : 'min-h-[120px]'} text-sm`}
                         placeholder="Type your handwritten text..."
                       />
                       {selectedIds.length > 1 && (
                         <p className="text-[10px] text-surface-400 italic">Editing {selectedIds.length} blocks simultaneously</p>
                       )}
                     </div>
+                  )}
 
-                    <div className="h-px bg-surface-100" />
+                  {/* Font Family Selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Font Style</label>
+                    <select 
+                      value={targetSettings.fontFamily}
+                      onChange={(e) => updateSettings({ fontFamily: e.target.value })}
+                      className="w-full p-3 bg-surface-50 border border-surface-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-sm font-bold text-surface-700"
+                      style={{ fontFamily: targetSettings.fontFamily }}
+                    >
+                      {HANDWRITING_FONTS.map(font => (
+                        <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                    {/* Rotation Slider */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Tilt / Rotation</label>
-                        <span className="text-xs font-mono text-surface-500">{Math.round(effectiveSelectedBlock.rotation)}°</span>
-                      </div>
+                  {/* Combined Font Mixture */}
+                  <div className="flex items-center justify-between py-1.5 border-t border-b border-surface-100 my-1">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-surface-700">Combine Two Fonts</span>
+                      <span className="text-[10px] text-surface-400">Blends fonts for ultra-natural look</span>
+                    </div>
+                    <button 
+                      onClick={() => updateSettings({ isCombinedFont: !targetSettings.isCombinedFont })}
+                      className={`w-10 h-5 rounded-full transition-all relative ${targetSettings.isCombinedFont ? 'bg-brand-600' : 'bg-surface-200'}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all ${targetSettings.isCombinedFont ? 'left-5.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+
+                  {targetSettings.isCombinedFont && (
+                    <div className="space-y-2 transition-all">
+                      <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Secondary Font Style</label>
+                      <select 
+                        value={targetSettings.secondaryFontFamily || targetSettings.fontFamily}
+                        onChange={(e) => updateSettings({ secondaryFontFamily: e.target.value })}
+                        className="w-full p-3 bg-brand-50/50 border border-brand-200 text-brand-900 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-sm font-bold"
+                        style={{ fontFamily: targetSettings.secondaryFontFamily || targetSettings.fontFamily }}
+                      >
+                        {HANDWRITING_FONTS.map(font => (
+                          <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                            {font.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Ink Color Picker */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Ink Color</label>
+                    <div className="grid grid-cols-5 gap-2 bg-surface-50 border border-surface-200 p-2.5 rounded-xl">
+                      {INK_COLORS.map(color => (
+                        <button
+                          key={color.value}
+                          onClick={() => updateSettings({ fill: color.value })}
+                          className={`aspect-square w-full rounded-full border-2 transition-all relative flex items-center justify-center ${targetSettings.fill === color.value ? 'border-brand-600 scale-105 shadow-md shadow-brand-100' : 'border-transparent hover:border-surface-200'} cursor-pointer`}
+                          style={{ backgroundColor: color.value }}
+                          title={color.name}
+                        >
+                          {targetSettings.fill === color.value && (
+                            <div className="w-1.5 h-1.5 bg-white rounded-full shadow" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Font Size Selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Font Size</label>
+                    <div className="flex items-center bg-surface-50 border border-surface-200 rounded-xl p-1 shadow-sm">
+                      <button 
+                        onClick={() => updateSettings({ fontSize: Math.max(8, (targetSettings.fontSize || 96) - 2) })}
+                        className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-surface-600 min-w-[36px] flex justify-center border-none bg-transparent cursor-pointer"
+                      >
+                        <Minus size={16} />
+                      </button>
                       <input 
-                        type="range" 
-                        min="-45" 
-                        max="45" 
-                        value={effectiveSelectedBlock.rotation}
-                        onChange={(e) => updateSelected({ rotation: parseFloat(e.target.value) })}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        onTouchMove={(e) => e.stopPropagation()}
-                        className="w-full h-2 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-brand-600 touch-none"
+                        type="number" 
+                        value={Math.round(targetSettings.fontSize || 96)}
+                        onChange={(e) => updateSettings({ fontSize: parseInt(e.target.value) || 12 })}
+                        className="w-full text-center bg-transparent text-sm font-black text-surface-900 focus:outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
+                      <button 
+                        onClick={() => updateSettings({ fontSize: Math.min(200, (targetSettings.fontSize || 96) + 2) })}
+                        className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-surface-600 min-w-[36px] flex justify-center border-none bg-transparent cursor-pointer"
+                      >
+                        <Plus size={16} />
+                      </button>
                     </div>
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className={`text-center ${isFullscreen ? 'py-6' : 'py-12'}`}
-                  >
-                    <div className="w-12 h-12 bg-surface-50 rounded-full flex items-center justify-center mx-auto mb-3 text-surface-300">
-                      <Type size={20} />
+                  </div>
+
+                  {/* Sliders for rotation, spacing, etc. */}
+                  <div className="space-y-4">
+                    {/* Rotation */}
+                    <SidebarSliderControl 
+                      label="Tilt / Rotation" 
+                      value={targetSettings.rotation || 0} 
+                      min={-15} 
+                      max={15} 
+                      step={0.5}
+                      onChange={(val) => updateSettings({ rotation: val })}
+                      onReset={() => updateSettings({ rotation: 0 })}
+                      unit="°"
+                    />
+
+                    <SidebarSliderControl 
+                      label="Line Height" 
+                      value={targetSettings.lineHeight || 1.2} 
+                      min={0.5} 
+                      max={3.0} 
+                      step={0.05}
+                      onChange={(val) => updateSettings({ lineHeight: val })}
+                      onReset={() => updateSettings({ lineHeight: 1.2 })}
+                    />
+
+                    <SidebarSliderControl 
+                      label="Letter Spacing" 
+                      value={targetSettings.letterSpacing || 0} 
+                      min={-5} 
+                      max={20} 
+                      step={0.5}
+                      onChange={(val) => updateSettings({ letterSpacing: val })}
+                      onReset={() => updateSettings({ letterSpacing: 0 })}
+                    />
+
+                    <SidebarSliderControl 
+                      label="Word Spacing" 
+                      value={targetSettings.wordSpacing || 0} 
+                      min={0} 
+                      max={20} 
+                      step={0.5}
+                      onChange={(val) => updateSettings({ wordSpacing: val })}
+                      onReset={() => updateSettings({ wordSpacing: 0 })}
+                    />
+
+                    <SidebarSliderControl 
+                      label="Ink Opacity" 
+                      value={targetSettings.opacity || 0.8} 
+                      min={0.1} 
+                      max={1.0} 
+                      step={0.05}
+                      onChange={(val) => updateSettings({ opacity: val })}
+                      onReset={() => updateSettings({ opacity: 0.8 })}
+                    />
+                  </div>
+
+                  {/* Horizontal Alignment */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-surface-400 uppercase tracking-wider">Text Alignment</label>
+                    <div className="grid grid-cols-3 gap-1 bg-surface-100 p-1 rounded-xl">
+                      {(['left', 'center', 'right'] as const).map((align) => (
+                        <button
+                          key={align}
+                          onClick={() => updateSettings({ align })}
+                          className={`py-2 rounded-lg text-xs font-bold capitalize transition-all border-none cursor-pointer ${targetSettings.align === align ? 'bg-white shadow-sm text-brand-600' : 'text-surface-500 hover:text-surface-700 bg-transparent'}`}
+                        >
+                          {align}
+                        </button>
+                      ))}
                     </div>
-                    <p className="text-sm text-surface-400 italic">Select a text block to edit its properties</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+                  </div>
+
+                  {/* Mobile Footer Inside Settings Tab */}
+                  <div className="lg:hidden pt-8 pb-4 text-center text-[10px] text-surface-400 font-medium uppercase tracking-widest border-t border-surface-100 space-y-2">
+                    <p>© 2026 Handify.ai</p>
+                    <p>Created by Flosy</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </aside>
+
+        {/* Mobile: Dedicated Full-Screen Text Editor Tab */}
+        <div className={`lg:hidden w-full h-full p-6 overflow-y-auto flex-col gap-5 bg-white ${activeMobileTab === 'text' ? 'flex' : 'hidden'}`}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-surface-900 tracking-tight flex items-center gap-2">
+              <FileText size={20} className="text-brand-600" />
+              Edit Bulk Content
+            </h3>
+            <span className="text-xs font-bold text-surface-500 bg-brand-50 border border-brand-100 px-2.5 py-1 rounded-xl">
+              {bulkText.length} characters
+            </span>
+          </div>
+          <textarea 
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            className="w-full flex-1 p-4 bg-surface-50 border border-surface-200 rounded-2xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none text-base min-h-[40vh] resize-none leading-relaxed"
+            placeholder="Type or paste your text here to convert it to handwriting..."
+          />
+          <div className="bg-brand-50 border border-brand-100 rounded-2xl p-4 flex gap-3 items-start text-brand-800 text-xs">
+            <Sparkles className="shrink-0 text-brand-600 mt-0.5" size={16} />
+            <p className="leading-relaxed">
+              <strong>Tip:</strong> Long texts are automatically split into multiple handwritten pages. You can preview them in the <strong>Canvas</strong> tab and adjust styling in the <strong>Settings</strong> tab.
+            </p>
+          </div>
+          <button 
+            onClick={() => setActiveMobileTab('canvas')}
+            className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-bold text-base transition-all shadow-lg shadow-brand-200/50 flex items-center justify-center gap-2 cursor-pointer border-none"
+          >
+            <Eye size={18} />
+            View Handwritten Canvas
+          </button>
+        </div>
       </main>
 
       <AnimatePresence>

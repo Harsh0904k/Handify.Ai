@@ -1,5 +1,6 @@
 {
-  "name": " Handify.ai - Text to Handwriting Converter",
+  "name": "Remix: current:  Handify.ai - Text to Handwriting Converter",
   "description": "The ultimate text to handwriting converter created by Flosy. Transform digital text into realistic handwriting effortlessly for assignments, letters, and creative projects with custom fonts and paper backgrounds.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -35,28 +35,40 @@ service cloud.firestore {
     }
 
     function isValidEmail(email) {
-      return email is string &&
+      return email is string && email.size() < 100 &&
         email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isRecent(time) {
+      return time > request.time - duration.value(5, 'm') && time < request.time + duration.value(5, 'm');
     }
 
     function isValidFeedback(data) {
       return data.keys().hasAll(['content', 'createdAt', 'type', 'email']) &&
-             data.content is string && data.content.size() > 0 && data.content.size() < 2000 &&
-             data.createdAt is timestamp &&
+             data.keys().hasOnly(['content', 'createdAt', 'type', 'email', 'uid']) &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+             data.createdAt is timestamp && isRecent(data.createdAt) &&
              data.type in ['review', 'suggestion'] &&
              isValidEmail(data.email) &&
              (!('uid' in data) || (isAuthenticated() && data.uid == request.auth.uid));
     }
 
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow write: if isOwner(uid);
     }
 
     match /feedback/{feedbackId} {
       // Allow anyone to create feedback with valid data
       allow create: if isValidFeedback(request.resource.data);
-      // Only admins can read all feedback (for now, let's keep it private)
-      allow read: if false; 
+      // Only admins can read all feedback
+      allow read: if isAdmin(); 
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "9431626harsh@gmail.com" && request.auth.token.email_verified == true)); // Default admin
     }
   }
 }

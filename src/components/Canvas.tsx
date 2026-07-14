@@ -54,38 +54,6 @@ const TextBlockItem = React.memo(({
   isCharVariance?: boolean;
 }) => {
   const shapeRef = useRef<any>(null);
-  const textRef = useRef<any>(null);
-
-  // Cache the text node when realistic mode or character variance is on
-  useEffect(() => {
-    if ((isRealistic || isCharVariance) && textRef.current && !isSelected) {
-      // Use a small timeout to ensure the font is loaded and rendered before caching
-      const timer = setTimeout(() => {
-        if (textRef.current) {
-          try {
-            // Calculate cache size based on font size and text length
-            // We need a bit of padding for jitter/variance
-            const padding = shapeProps.fontSize * 0.5;
-            textRef.current.cache({
-              offset: padding / 2,
-              pixelRatio: 2, // Higher quality for text
-            });
-            textRef.current.getLayer()?.batchDraw();
-          } catch (e) {
-            console.warn('Failed to cache text node:', e);
-          }
-        }
-      }, 100);
-      return () => {
-        clearTimeout(timer);
-        if (textRef.current) {
-          textRef.current.clearCache();
-        }
-      };
-    } else if (textRef.current) {
-      textRef.current.clearCache();
-    }
-  }, [isRealistic, isCharVariance, isSelected, shapeProps.text, shapeProps.fontSize, shapeProps.fontFamily, shapeProps.fill, shapeProps.letterSpacing, shapeProps.wordSpacing, shapeProps.align, shapeProps.width]);
 
   // Add random jitter and skew for realistic mode
   const jitter = React.useMemo(() => {
@@ -179,8 +147,8 @@ const TextBlockItem = React.memo(({
         }}
       >
         <Text
+          key={`${shapeProps.id}-${isRealistic}-${isCharVariance}-${isSelected}`}
           {...shapeProps}
-          ref={textRef}
           id={shapeProps.id + '-text'}
           x={0}
           y={0}
@@ -213,8 +181,9 @@ const TextBlockItem = React.memo(({
               }
             });
 
+            const hitPadding = typeof window !== 'undefined' && window.innerWidth < 640 ? 15 : 5;
             context.beginPath();
-            context.rect(0, 0, totalWidth, fontSize);
+            context.rect(-hitPadding, -hitPadding, totalWidth + hitPadding * 2, fontSize + hitPadding * 2);
             context.closePath();
             context.fillStrokeShape(shape);
           }}
@@ -223,13 +192,14 @@ const TextBlockItem = React.memo(({
             const words = text.split(' ');
             const fontSize = shapeProps.fontSize || 24;
             const fontFamily = shapeProps.fontFamily || 'cursive_real';
+            const secondaryFontFamily = shapeProps.secondaryFontFamily || fontFamily;
+            const isCombinedFont = shapeProps.isCombinedFont || false;
             const fill = shapeProps.fill || '#000000';
             const letterSpacing = shapeProps.letterSpacing || 0;
             const wordSpacing = (shapeProps.wordSpacing || 0) * 10; // Extra pixels between words
             const align = shapeProps.align || 'left';
             const width = shapeProps.width || 200;
 
-            context.font = `${fontSize}px "${fontFamily}"`;
             context.fillStyle = fill;
             context.textBaseline = 'alphabetic';
             
@@ -244,29 +214,44 @@ const TextBlockItem = React.memo(({
             const seed = shapeProps.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
             // Calculate total width to handle alignment
+            let charIndex = 0;
             let totalWidth = 0;
-            const wordMetrics = words.map(word => {
+            const wordMetrics = words.map((word, i) => {
               let w = 0;
               for (let j = 0; j < word.length; j++) {
-                w += context.measureText(word[j]).width + letterSpacing;
+                const char = word[j];
+                const charSeed = seed + charIndex + char.charCodeAt(0);
+                const currentFont = isCombinedFont && random(charSeed + 100) > 0.5 ? secondaryFontFamily : fontFamily;
+                context.font = `${fontSize}px "${currentFont}"`;
+                w += context.measureText(char).width + letterSpacing;
+                charIndex++;
               }
               totalWidth += w;
+              if (i < words.length - 1) {
+                context.font = `${fontSize}px "${fontFamily}"`;
+                totalWidth += context.measureText(' ').width + letterSpacing + wordSpacing;
+                charIndex++;
+              }
               return w;
             });
-            totalWidth += (words.length - 1) * (context.measureText(' ').width + letterSpacing + wordSpacing);
 
             let startX = 0;
             if (align === 'center') startX = (width - totalWidth) / 2;
             if (align === 'right') startX = width - totalWidth;
 
             let currentX = startX;
+            context.font = `${fontSize}px "${fontFamily}"`;
             const spaceWidth = context.measureText(' ').width + letterSpacing + wordSpacing;
 
-            let charIndex = 0;
+            charIndex = 0;
             words.forEach((word, i) => {
               // Draw each character for letter spacing
               for (let j = 0; j < word.length; j++) {
                 const char = word[j];
+                const charSeed = seed + charIndex + char.charCodeAt(0);
+                const currentFont = isCombinedFont && random(charSeed + 100) > 0.5 ? secondaryFontFamily : fontFamily;
+                context.font = `${fontSize}px "${currentFont}"`;
+
                 let charX = currentX;
                 let charY = fontSize * 0.8;
                 let charRotation = 0;
@@ -389,8 +374,8 @@ const IndividualTransformer = ({ id, isActive, isExporting, textBlocks }: { id: 
       ref={trRef}
       rotateEnabled={true}
       enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']}
-      anchorSize={10}
-      anchorCornerRadius={3}
+      anchorSize={typeof window !== 'undefined' && window.innerWidth < 640 ? 16 : 10}
+      anchorCornerRadius={4}
       anchorStroke="#6366f1"
       anchorFill="#fff"
       borderStroke="#6366f1"

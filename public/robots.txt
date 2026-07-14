@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ais-dev-mzxoza22n5uxahwz2y3cxc-189562289253.asia-southeast1.run.app/sitemap.xml
+Sitemap: https://handify-ai.web.app/sitemap.xml
