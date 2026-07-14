@@ -1041,9 +1041,16 @@ export default function App() {
         const getLineInfoAtY = (y: number) => {
           const t = y / boundaryHeight;
           const leftX = debouncedBoundary.topLeft.x + (debouncedBoundary.bottomLeft.x - debouncedBoundary.topLeft.x) * t + padding;
+          const leftY = debouncedBoundary.topLeft.y + (debouncedBoundary.bottomLeft.y - debouncedBoundary.topLeft.y) * t + padding;
           const rightX = debouncedBoundary.topRight.x + (debouncedBoundary.bottomRight.x - debouncedBoundary.topRight.x) * t - padding;
-          const startY = debouncedBoundary.topLeft.y + (debouncedBoundary.bottomLeft.y - debouncedBoundary.topLeft.y) * t + padding;
-          return { leftX, width: Math.max(0, rightX - leftX), startY };
+          const rightY = debouncedBoundary.topRight.y + (debouncedBoundary.bottomRight.y - debouncedBoundary.topRight.y) * t + padding;
+          
+          const dx = rightX - leftX;
+          const dy = rightY - leftY;
+          const lineWidth = Math.sqrt(dx * dx + dy * dy);
+          const angleRad = Math.atan2(dy, dx);
+          
+          return { leftX, leftY, width: Math.max(0, lineWidth), angleRad };
         };
 
         const spaceWidth = ctx.measureText(' ').width + (template.letterSpacing || 0) + (template.wordSpacing || 0);
@@ -1073,40 +1080,45 @@ export default function App() {
             const { width: availableWidth } = getLineInfoAtY(currentY);
             
             if (metrics.width + letterSpacingAdjustment > availableWidth && currentLine) {
-              const { leftX, startY, width: lineWidthAtY } = getLineInfoAtY(currentY);
+              const { leftX, leftY, width: lineWidthAtY, angleRad } = getLineInfoAtY(currentY);
+              const angleDeg = angleRad * (180 / Math.PI);
               
               if (moveMode === 'words') {
                 const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
                 const lineMergedTemplate = { ...template, ...lineOverride };
                 const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (lineMergedTemplate.letterSpacing || 0));
                 
-                let lineX = leftX;
-                if (lineMergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
-                else if (lineMergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+                let offsetAlongLine = 0;
+                if (lineMergedTemplate.align === 'center') offsetAlongLine += (lineWidthAtY - actualLineWidth) / 2;
+                else if (lineMergedTemplate.align === 'right') offsetAlongLine += (lineWidthAtY - actualLineWidth);
+
+                const baseLineX = leftX + offsetAlongLine * Math.cos(angleRad);
+                const baseLineY = leftY + offsetAlongLine * Math.sin(angleRad);
 
                 let dragDeltaX = 0;
                 let dragDeltaY = 0;
                 if (lineOverride.x !== undefined) {
-                  const defaultLineX = lineX + (pageOffsets[allPages.length]?.x || 0);
+                  const defaultLineX = baseLineX + (pageOffsets[allPages.length]?.x || 0);
                   dragDeltaX = lineOverride.x - defaultLineX;
                 }
                 if (lineOverride.y !== undefined) {
-                  const defaultLineY = startY + (pageOffsets[allPages.length]?.y || 0);
+                  const defaultLineY = baseLineY + (pageOffsets[allPages.length]?.y || 0);
                   dragDeltaY = lineOverride.y - defaultLineY;
                 }
 
                 const wordsInLine = currentLine.split(' ');
-                let wordX = leftX;
-                if (lineMergedTemplate.align === 'center') wordX += (lineWidthAtY - actualLineWidth) / 2;
-                else if (lineMergedTemplate.align === 'right') wordX += (lineWidthAtY - actualLineWidth);
+                let distanceFromStart = offsetAlongLine;
 
                 wordsInLine.forEach((w, wIdx) => {
                   const wordOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}-w${wIdx}`] || {};
                   const mergedWordTemplate = { ...lineMergedTemplate, ...wordOverride };
                   const wWidth = ctx.measureText(w).width + (w.length * (mergedWordTemplate.letterSpacing || 0));
                   
-                  const defaultWordX = wordX + dragDeltaX + (pageOffsets[allPages.length]?.x || 0);
-                  const defaultWordY = startY + dragDeltaY + (pageOffsets[allPages.length]?.y || 0);
+                  const baseWordX = leftX + distanceFromStart * Math.cos(angleRad);
+                  const baseWordY = leftY + distanceFromStart * Math.sin(angleRad);
+
+                  const defaultWordX = baseWordX + dragDeltaX + (pageOffsets[allPages.length]?.x || 0);
+                  const defaultWordY = baseWordY + dragDeltaY + (pageOffsets[allPages.length]?.y || 0);
 
                   currentPageBlocks.push({
                     ...mergedWordTemplate,
@@ -1115,24 +1127,27 @@ export default function App() {
                     x: wordOverride.x !== undefined ? wordOverride.x : defaultWordX,
                     y: wordOverride.y !== undefined ? wordOverride.y : defaultWordY,
                     width: wordOverride.width !== undefined ? wordOverride.width : wWidth,
-                    rotation: wordOverride.rotation !== undefined ? wordOverride.rotation : (mergedWordTemplate.rotation || 0),
+                    rotation: wordOverride.rotation !== undefined ? wordOverride.rotation : (lineOverride.rotation !== undefined ? lineOverride.rotation : (angleDeg + (mergedWordTemplate.rotation || 0))),
                     paragraphIndex,
                     lineIndex: lineIndexInPara,
                     wordIndex: wIdx,
                   } as TextBlock);
-                  wordX += wWidth + spaceWidth;
+                  distanceFromStart += wWidth + spaceWidth;
                 });
               } else {
                 const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
                 const mergedTemplate = { ...template, ...lineOverride };
                 const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (mergedTemplate.letterSpacing || 0));
                 
-                let lineX = leftX;
-                if (mergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
-                else if (mergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+                let offsetAlongLine = 0;
+                if (mergedTemplate.align === 'center') offsetAlongLine += (lineWidthAtY - actualLineWidth) / 2;
+                else if (mergedTemplate.align === 'right') offsetAlongLine += (lineWidthAtY - actualLineWidth);
 
-                const defaultX = lineX + (pageOffsets[allPages.length]?.x || 0);
-                const defaultY = startY + (pageOffsets[allPages.length]?.y || 0);
+                const baseLineX = leftX + offsetAlongLine * Math.cos(angleRad);
+                const baseLineY = leftY + offsetAlongLine * Math.sin(angleRad);
+
+                const defaultX = baseLineX + (pageOffsets[allPages.length]?.x || 0);
+                const defaultY = baseLineY + (pageOffsets[allPages.length]?.y || 0);
 
                 currentPageBlocks.push({
                   ...mergedTemplate,
@@ -1141,7 +1156,7 @@ export default function App() {
                   x: lineOverride.x !== undefined ? lineOverride.x : defaultX,
                   y: lineOverride.y !== undefined ? lineOverride.y : defaultY,
                   width: actualLineWidth,
-                  rotation: lineOverride.rotation !== undefined ? lineOverride.rotation : (mergedTemplate.rotation || 0),
+                  rotation: lineOverride.rotation !== undefined ? lineOverride.rotation : (angleDeg + (mergedTemplate.rotation || 0)),
                   paragraphIndex,
                   lineIndex: lineIndexInPara,
                 } as TextBlock);
@@ -1161,40 +1176,45 @@ export default function App() {
           }
 
           if (currentLine) {
-            const { leftX, startY, width: lineWidthAtY } = getLineInfoAtY(currentY);
+            const { leftX, leftY, width: lineWidthAtY, angleRad } = getLineInfoAtY(currentY);
+            const angleDeg = angleRad * (180 / Math.PI);
             
             if (moveMode === 'words') {
               const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
               const lineMergedTemplate = { ...template, ...lineOverride };
               const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (lineMergedTemplate.letterSpacing || 0));
               
-              let lineX = leftX;
-              if (lineMergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
-              else if (lineMergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+              let offsetAlongLine = 0;
+              if (lineMergedTemplate.align === 'center') offsetAlongLine += (lineWidthAtY - actualLineWidth) / 2;
+              else if (lineMergedTemplate.align === 'right') offsetAlongLine += (lineWidthAtY - actualLineWidth);
+
+              const baseLineX = leftX + offsetAlongLine * Math.cos(angleRad);
+              const baseLineY = leftY + offsetAlongLine * Math.sin(angleRad);
 
               let dragDeltaX = 0;
               let dragDeltaY = 0;
               if (lineOverride.x !== undefined) {
-                const defaultLineX = lineX + (pageOffsets[allPages.length]?.x || 0);
+                const defaultLineX = baseLineX + (pageOffsets[allPages.length]?.x || 0);
                 dragDeltaX = lineOverride.x - defaultLineX;
               }
               if (lineOverride.y !== undefined) {
-                const defaultLineY = startY + (pageOffsets[allPages.length]?.y || 0);
+                const defaultLineY = baseLineY + (pageOffsets[allPages.length]?.y || 0);
                 dragDeltaY = lineOverride.y - defaultLineY;
               }
 
               const wordsInLine = currentLine.split(' ');
-              let wordX = leftX;
-              if (lineMergedTemplate.align === 'center') wordX += (lineWidthAtY - actualLineWidth) / 2;
-              else if (lineMergedTemplate.align === 'right') wordX += (lineWidthAtY - actualLineWidth);
+              let distanceFromStart = offsetAlongLine;
 
               wordsInLine.forEach((w, wIdx) => {
                 const wordOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}-w${wIdx}`] || {};
                 const mergedWordTemplate = { ...lineMergedTemplate, ...wordOverride };
                 const wWidth = ctx.measureText(w).width + (w.length * (mergedWordTemplate.letterSpacing || 0));
                 
-                const defaultWordX = wordX + dragDeltaX + (pageOffsets[allPages.length]?.x || 0);
-                const defaultWordY = startY + dragDeltaY + (pageOffsets[allPages.length]?.y || 0);
+                const baseWordX = leftX + distanceFromStart * Math.cos(angleRad);
+                const baseWordY = leftY + distanceFromStart * Math.sin(angleRad);
+
+                const defaultWordX = baseWordX + dragDeltaX + (pageOffsets[allPages.length]?.x || 0);
+                const defaultWordY = baseWordY + dragDeltaY + (pageOffsets[allPages.length]?.y || 0);
 
                 currentPageBlocks.push({
                   ...mergedWordTemplate,
@@ -1203,24 +1223,27 @@ export default function App() {
                   x: wordOverride.x !== undefined ? wordOverride.x : defaultWordX,
                   y: wordOverride.y !== undefined ? wordOverride.y : defaultWordY,
                   width: wordOverride.width !== undefined ? wordOverride.width : wWidth,
-                  rotation: wordOverride.rotation !== undefined ? wordOverride.rotation : (mergedWordTemplate.rotation || 0),
+                  rotation: wordOverride.rotation !== undefined ? wordOverride.rotation : (lineOverride.rotation !== undefined ? lineOverride.rotation : (angleDeg + (mergedWordTemplate.rotation || 0))),
                   paragraphIndex,
                   lineIndex: lineIndexInPara,
                   wordIndex: wIdx,
                 } as TextBlock);
-                wordX += wWidth + spaceWidth;
+                distanceFromStart += wWidth + spaceWidth;
               });
             } else {
               const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
               const mergedTemplate = { ...template, ...lineOverride };
               const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (mergedTemplate.letterSpacing || 0));
               
-              let lineX = leftX;
-              if (mergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
-              else if (mergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+              let offsetAlongLine = 0;
+              if (mergedTemplate.align === 'center') offsetAlongLine += (lineWidthAtY - actualLineWidth) / 2;
+              else if (mergedTemplate.align === 'right') offsetAlongLine += (lineWidthAtY - actualLineWidth);
 
-              const defaultX = lineX + (pageOffsets[allPages.length]?.x || 0);
-              const defaultY = startY + (pageOffsets[allPages.length]?.y || 0);
+              const baseLineX = leftX + offsetAlongLine * Math.cos(angleRad);
+              const baseLineY = leftY + offsetAlongLine * Math.sin(angleRad);
+
+              const defaultX = baseLineX + (pageOffsets[allPages.length]?.x || 0);
+              const defaultY = baseLineY + (pageOffsets[allPages.length]?.y || 0);
 
               currentPageBlocks.push({
                 ...mergedTemplate,
@@ -1229,7 +1252,7 @@ export default function App() {
                 x: lineOverride.x !== undefined ? lineOverride.x : defaultX,
                 y: lineOverride.y !== undefined ? lineOverride.y : defaultY,
                 width: actualLineWidth,
-                rotation: lineOverride.rotation !== undefined ? lineOverride.rotation : (mergedTemplate.rotation || 0),
+                rotation: lineOverride.rotation !== undefined ? lineOverride.rotation : (angleDeg + (mergedTemplate.rotation || 0)),
                 paragraphIndex,
                 lineIndex: lineIndexInPara,
               } as TextBlock);
@@ -1252,8 +1275,10 @@ export default function App() {
         }
         
         setPages(allPages);
-        // Reset to first page when content changes significantly
-        setCurrentPageIndex(0);
+        setCurrentPageIndex(prev => {
+          if (allPages.length === 0) return 0;
+          return Math.min(prev, allPages.length - 1);
+        });
       } catch (err) {
         console.error('Error generating pages:', err);
       } finally {
@@ -1279,7 +1304,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen bg-[#f8f9fa] flex flex-col overflow-hidden">
+    <div className="h-screen h-[100dvh] bg-[#f8f9fa] flex flex-col overflow-hidden">
       <Toaster position="top-center" richColors />
       
       {/* Image Loading Overlay */}
@@ -1572,6 +1597,7 @@ export default function App() {
                       selectedIds={selectedIds}
                       isRealistic={isRealisticMode}
                       isCharVariance={isCharVariance}
+                      blockOverrides={blockOverrides}
                       onSelect={(id, multi) => {
                         if (!id) {
                           setSelectedIds([]);
@@ -1665,6 +1691,7 @@ export default function App() {
                     selectedIds={selectedIds}
                     isRealistic={isRealisticMode}
                     isCharVariance={isCharVariance}
+                    blockOverrides={blockOverrides}
                     onSelect={(id, multi) => {
                       if (!id) {
                         setSelectedIds([]);

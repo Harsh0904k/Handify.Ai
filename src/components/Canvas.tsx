@@ -24,6 +24,7 @@ interface CanvasProps {
   isRealistic?: boolean;
   isCharVariance?: boolean;
   listening?: boolean;
+  blockOverrides?: {[key: string]: Partial<TextBlock>};
 }
 
 const TextBlockItem = React.memo(({ 
@@ -38,7 +39,8 @@ const TextBlockItem = React.memo(({
   isExporting = false,
   isActive = true,
   isRealistic = false,
-  isCharVariance = false
+  isCharVariance = false,
+  blockOverrides
 }: { 
   shapeProps: TextBlock; 
   isSelected: boolean; 
@@ -52,6 +54,7 @@ const TextBlockItem = React.memo(({
   isActive?: boolean;
   isRealistic?: boolean;
   isCharVariance?: boolean;
+  blockOverrides?: {[key: string]: Partial<TextBlock>};
 }) => {
   const shapeRef = useRef<any>(null);
 
@@ -73,6 +76,13 @@ const TextBlockItem = React.memo(({
       skewY: (random(seed + 4) - 0.5) * 0.03, // Subtle skew
     };
   }, [isRealistic, shapeProps.id]);
+
+  const getWordOverride = (i: number) => {
+    if (blockOverrides && shapeProps.paragraphIndex !== undefined && shapeProps.lineIndex !== undefined && shapeProps.wordIndex === undefined) {
+      return blockOverrides[`p${shapeProps.paragraphIndex}-l${shapeProps.lineIndex}-w${i}`] || {};
+    }
+    return {};
+  };
 
   return (
     <React.Fragment>
@@ -101,17 +111,22 @@ const TextBlockItem = React.memo(({
           const internalX = pos.x / scale;
           const internalY = pos.y / scale;
           
-          const minX = Math.min(boundary.topLeft.x, boundary.bottomLeft.x);
-          const maxX = Math.max(boundary.topRight.x, boundary.bottomRight.x);
-          const minY = Math.min(boundary.topLeft.y, boundary.topRight.y);
-          const maxY = Math.max(boundary.bottomLeft.y, boundary.bottomRight.y);
+          const minY = Math.min(boundary.topLeft.y, boundary.topRight.y, boundary.bottomLeft.y, boundary.bottomRight.y);
+          const maxY = Math.max(boundary.topLeft.y, boundary.topRight.y, boundary.bottomLeft.y, boundary.bottomRight.y);
+          const clampedY = Math.max(minY, Math.min(internalY, maxY - (shapeProps.fontSize || 24)));
           
-          const node = shapeRef.current;
-          const width = node ? node.width() : 0;
-          const height = node ? node.height() : 0;
+          const leftYRange = boundary.bottomLeft.y - boundary.topLeft.y;
+          const leftT = leftYRange !== 0 ? (clampedY - boundary.topLeft.y) / leftYRange : 0;
+          const clampedLeftT = Math.max(0, Math.min(1, leftT));
+          const leftX = boundary.topLeft.x + (boundary.bottomLeft.x - boundary.topLeft.x) * clampedLeftT;
           
-          const clampedX = Math.max(minX, Math.min(internalX, maxX - width));
-          const clampedY = Math.max(minY, Math.min(internalY, maxY - height));
+          const rightYRange = boundary.bottomRight.y - boundary.topRight.y;
+          const rightT = rightYRange !== 0 ? (clampedY - boundary.topRight.y) / rightYRange : 0;
+          const clampedRightT = Math.max(0, Math.min(1, rightT));
+          const rightX = boundary.topRight.x + (boundary.bottomRight.x - boundary.topRight.x) * clampedRightT;
+          
+          const width = shapeProps.width || 100;
+          const clampedX = Math.max(leftX, Math.min(internalX, Math.max(leftX, rightX - width)));
           
           // Return absolute stage position
           return {
@@ -173,11 +188,19 @@ const TextBlockItem = React.memo(({
             const words = text.split(' ');
             let totalWidth = 0;
             words.forEach((word, i) => {
+              const wordOverride = getWordOverride(i);
+              const wordFontSize = wordOverride.fontSize || fontSize;
+              const wordFontFamily = wordOverride.fontFamily || shapeProps.fontFamily || 'cursive_real';
+              const wordLetterSpacing = wordOverride.letterSpacing !== undefined ? wordOverride.letterSpacing : letterSpacing;
+              const wordSpacingVal = wordOverride.wordSpacing !== undefined ? wordOverride.wordSpacing : (shapeProps.wordSpacing || 0);
+              const wordSpacingPx = wordSpacingVal * 10;
+
+              context.font = `${wordFontSize}px "${wordFontFamily}"`;
               for (let j = 0; j < word.length; j++) {
-                totalWidth += context.measureText(word[j]).width + letterSpacing;
+                totalWidth += context.measureText(word[j]).width + wordLetterSpacing;
               }
               if (i < words.length - 1) {
-                totalWidth += context.measureText(' ').width + letterSpacing + wordSpacing;
+                totalWidth += context.measureText(' ').width + wordLetterSpacing + wordSpacingPx;
               }
             });
 
@@ -217,19 +240,28 @@ const TextBlockItem = React.memo(({
             let charIndex = 0;
             let totalWidth = 0;
             const wordMetrics = words.map((word, i) => {
+              const wordOverride = getWordOverride(i);
+              const wordFontSize = wordOverride.fontSize || fontSize;
+              const wordFontFamily = wordOverride.fontFamily || fontFamily;
+              const wordSecondaryFontFamily = wordOverride.secondaryFontFamily || secondaryFontFamily || wordFontFamily;
+              const wordIsCombinedFont = wordOverride.isCombinedFont !== undefined ? wordOverride.isCombinedFont : isCombinedFont;
+              const wordLetterSpacing = wordOverride.letterSpacing !== undefined ? wordOverride.letterSpacing : letterSpacing;
+
               let w = 0;
               for (let j = 0; j < word.length; j++) {
                 const char = word[j];
                 const charSeed = seed + charIndex + char.charCodeAt(0);
-                const currentFont = isCombinedFont && random(charSeed + 100) > 0.5 ? secondaryFontFamily : fontFamily;
-                context.font = `${fontSize}px "${currentFont}"`;
-                w += context.measureText(char).width + letterSpacing;
+                const currentFont = wordIsCombinedFont && random(charSeed + 100) > 0.5 ? wordSecondaryFontFamily : wordFontFamily;
+                context.font = `${wordFontSize}px "${currentFont}"`;
+                w += context.measureText(char).width + wordLetterSpacing;
                 charIndex++;
               }
               totalWidth += w;
               if (i < words.length - 1) {
-                context.font = `${fontSize}px "${fontFamily}"`;
-                totalWidth += context.measureText(' ').width + letterSpacing + wordSpacing;
+                context.font = `${wordFontSize}px "${wordFontFamily}"`;
+                const wordSpacingVal = wordOverride.wordSpacing !== undefined ? wordOverride.wordSpacing : (shapeProps.wordSpacing || 0);
+                const wordSpacingPx = wordSpacingVal * 10;
+                totalWidth += context.measureText(' ').width + wordLetterSpacing + wordSpacingPx;
                 charIndex++;
               }
               return w;
@@ -240,28 +272,39 @@ const TextBlockItem = React.memo(({
             if (align === 'right') startX = width - totalWidth;
 
             let currentX = startX;
-            context.font = `${fontSize}px "${fontFamily}"`;
-            const spaceWidth = context.measureText(' ').width + letterSpacing + wordSpacing;
 
             charIndex = 0;
             words.forEach((word, i) => {
+              const wordOverride = getWordOverride(i);
+              const wordFill = wordOverride.fill || fill;
+              const wordFontSize = wordOverride.fontSize || fontSize;
+              const wordFontFamily = wordOverride.fontFamily || fontFamily;
+              const wordSecondaryFontFamily = wordOverride.secondaryFontFamily || secondaryFontFamily || wordFontFamily;
+              const wordIsCombinedFont = wordOverride.isCombinedFont !== undefined ? wordOverride.isCombinedFont : isCombinedFont;
+              const wordLetterSpacing = wordOverride.letterSpacing !== undefined ? wordOverride.letterSpacing : letterSpacing;
+              const wordSpacingVal = wordOverride.wordSpacing !== undefined ? wordOverride.wordSpacing : (shapeProps.wordSpacing || 0);
+              const wordSpacingPx = wordSpacingVal * 10;
+              const wordOpacity = wordOverride.opacity !== undefined ? wordOverride.opacity : 1;
+
               // Draw each character for letter spacing
               for (let j = 0; j < word.length; j++) {
                 const char = word[j];
                 const charSeed = seed + charIndex + char.charCodeAt(0);
-                const currentFont = isCombinedFont && random(charSeed + 100) > 0.5 ? secondaryFontFamily : fontFamily;
-                context.font = `${fontSize}px "${currentFont}"`;
+                const currentFont = wordIsCombinedFont && random(charSeed + 100) > 0.5 ? wordSecondaryFontFamily : wordFontFamily;
+                context.font = `${wordFontSize}px "${currentFont}"`;
 
                 let charX = currentX;
-                let charY = fontSize * 0.8;
+                let charY = wordFontSize * 0.8;
                 let charRotation = 0;
                 let charScale = 1;
+
+                context.fillStyle = wordFill;
 
                 if (isCharVariance) {
                   const charSeed = seed + charIndex + char.charCodeAt(0);
                   // More natural, subtle offsets
-                  charX += (random(charSeed) - 0.5) * (fontSize * 0.04); 
-                  charY += (random(charSeed + 1) - 0.5) * (fontSize * 0.04); 
+                  charX += (random(charSeed) - 0.5) * (wordFontSize * 0.04); 
+                  charY += (random(charSeed + 1) - 0.5) * (wordFontSize * 0.04); 
                   charRotation = (random(charSeed + 2) - 0.5) * 0.08; 
                   charScale = 0.98 + (random(charSeed + 3) * 0.04); // Scale between 0.98 and 1.02
                   
@@ -270,33 +313,33 @@ const TextBlockItem = React.memo(({
                   const pressure = random(charSeed + 5);
                   const charOpacity = 0.75 + (pressure * 0.25); 
                   // Very subtle stroke to vary thickness without making it look "bold"
-                  const charStrokeWidth = pressure > 0.7 ? (pressure - 0.7) * (fontSize * 0.015) : 0;
+                  const charStrokeWidth = pressure > 0.7 ? (pressure - 0.7) * (wordFontSize * 0.015) : 0;
 
                   context.save();
                   context.translate(charX, charY);
                   context.rotate(charRotation);
                   context.scale(charScale, charScale);
                   context.transform(1, 0, charSkewX, 1, 0, 0); 
-                  context.globalAlpha = charOpacity * baseOpacity;
+                  context.globalAlpha = charOpacity * baseOpacity * wordOpacity;
                   
                   // Ink bleed effect - subtle shadow
                   if (isRealistic) {
-                    context.shadowColor = fill;
-                    context.shadowBlur = fontSize * (0.01 + pressure * 0.02);
+                    context.shadowColor = wordFill;
+                    context.shadowBlur = wordFontSize * (0.01 + pressure * 0.02);
                     context.shadowOffsetX = 0;
                     context.shadowOffsetY = 0;
 
                     // Color jitter for ink
                     const colorSeed = charSeed + 10;
-                    const r = parseInt(fill.slice(1, 3), 16);
-                    const g = parseInt(fill.slice(3, 5), 16);
-                    const b = parseInt(fill.slice(5, 7), 16);
+                    const r = parseInt(wordFill.slice(1, 3), 16);
+                    const g = parseInt(wordFill.slice(3, 5), 16);
+                    const b = parseInt(wordFill.slice(5, 7), 16);
                     const offset = (random(colorSeed) - 0.5) * 20; // Increased jitter
                     context.fillStyle = `rgb(${Math.max(0, Math.min(255, r + offset))}, ${Math.max(0, Math.min(255, g + offset))}, ${Math.max(0, Math.min(255, b + offset))})`;
                     
                     // Smudge effect - very subtle
                     context.save();
-                    context.globalAlpha = 0.04 * baseOpacity;
+                    context.globalAlpha = 0.04 * baseOpacity * wordOpacity;
                     context.fillText(char, 0.4, 0.4);
                     context.fillText(char, -0.4, -0.4);
                     context.restore();
@@ -326,9 +369,9 @@ const TextBlockItem = React.memo(({
                     context.translate(charX, charY);
                     
                     // Subtle ink bleed even without variance
-                    context.shadowColor = fill;
-                    context.shadowBlur = fontSize * 0.01;
-                    context.globalAlpha = (0.8 + pressure * 0.2) * baseOpacity;
+                    context.shadowColor = wordFill;
+                    context.shadowBlur = wordFontSize * 0.01;
+                    context.globalAlpha = (0.8 + pressure * 0.2) * baseOpacity * wordOpacity;
                     
                     context.fillText(char, 0, 0);
                     context.restore();
@@ -337,11 +380,12 @@ const TextBlockItem = React.memo(({
                   }
                 }
 
-                currentX += context.measureText(char).width + letterSpacing;
+                currentX += context.measureText(char).width + wordLetterSpacing;
                 charIndex++;
               }
               if (i < words.length - 1) {
-                currentX += spaceWidth;
+                context.font = `${wordFontSize}px "${wordFontFamily}"`;
+                currentX += context.measureText(' ').width + wordLetterSpacing + wordSpacingPx;
                 charIndex++; // Count space as well for seed stability
               }
             });
@@ -406,7 +450,8 @@ export default function Canvas({
   onActivate,
   isRealistic = false,
   isCharVariance = false,
-  listening
+  listening,
+  blockOverrides
 }: CanvasProps) {
   const [image] = useImage(backgroundImage || '');
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -440,43 +485,49 @@ export default function Canvas({
   }, [selectedIds, textBlocks]);
 
   useEffect(() => {
-    const updateDimensions = () => {
-      if (image && containerRef.current) {
-        // Use requestAnimationFrame to ensure the DOM has updated visibility/layout
-        requestAnimationFrame(() => {
-          if (!containerRef.current) return;
-          const containerWidth = containerRef.current.offsetWidth;
-          const containerHeight = containerRef.current.offsetHeight;
-          
-          if (containerWidth > 0) {
-            const scaleX = containerWidth / image.width;
-            const scaleY = containerHeight / image.height;
-            const scale = Math.min(scaleX, scaleY);
-            
-            setDimensions({
-              width: image.width * scale,
-              height: image.height * scale
-            });
-          } else if (isExporting) {
-            // Fallback for hidden pages during export to ensure they have valid dimensions
-            // Use a sensible default based on internal width to avoid "zoomed" look
-            const scale = 0.25; // Roughly 750px width
-            setDimensions({
-              width: INTERNAL_WIDTH * scale,
-              height: (INTERNAL_WIDTH * (image.height / image.width)) * scale
-            });
-          }
+    if (!image || !containerRef.current) return;
+
+    const updateDimensions = (width: number, height: number) => {
+      if (width > 0) {
+        const scaleX = width / image.width;
+        const scaleY = height / image.height;
+        const scale = Math.min(scaleX, scaleY);
+        
+        setDimensions({
+          width: image.width * scale,
+          height: image.height * scale
+        });
+      } else if (isExporting) {
+        // Fallback for hidden pages during export to ensure they have valid dimensions
+        // Use a sensible default based on internal width to avoid "zoomed" look
+        const scale = 0.25; // Roughly 750px width
+        setDimensions({
+          width: INTERNAL_WIDTH * scale,
+          height: (INTERNAL_WIDTH * (image.height / image.width)) * scale
         });
       }
     };
 
-    updateDimensions();
-    // Add a small delay for mobile visibility transitions
-    const timer = setTimeout(updateDimensions, 100);
+    const container = containerRef.current;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Use offsetWidth and offsetHeight to accurately represent layout bounds
+        const w = container.offsetWidth;
+        const h = container.offsetHeight;
+        updateDimensions(w, h);
+      }
+    });
 
-    window.addEventListener('resize', updateDimensions);
+    resizeObserver.observe(container);
+
+    // Initial run with short timeout for transitions
+    updateDimensions(container.offsetWidth, container.offsetHeight);
+    const timer = setTimeout(() => {
+      updateDimensions(container.offsetWidth, container.offsetHeight);
+    }, 100);
+
     return () => {
-      window.removeEventListener('resize', updateDimensions);
+      resizeObserver.disconnect();
       clearTimeout(timer);
     };
   }, [image, isActive, isExporting]);
@@ -699,6 +750,7 @@ export default function Canvas({
                     isActive={isActive}
                     isRealistic={isRealistic}
                     isCharVariance={isCharVariance}
+                    blockOverrides={blockOverrides}
                   />
                 ))}
               </Group>
@@ -722,6 +774,7 @@ export default function Canvas({
                     isActive={isActive}
                     isRealistic={isRealistic}
                     isCharVariance={isCharVariance}
+                    blockOverrides={blockOverrides}
                   />
                 ))}
                 {selectedIds.length > 0 && !isExporting && isActive && (
