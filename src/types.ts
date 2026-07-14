@@ -36,6 +36,9 @@ export interface TextBlock {
   isCombinedFont?: boolean;
   isRealistic?: boolean;
   isCharVariance?: boolean;
+  paragraphIndex?: number;
+  lineIndex?: number;
+  wordIndex?: number;
 }
 
 export const HANDWRITING_FONTS = [

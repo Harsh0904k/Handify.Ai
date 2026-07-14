@@ -66,7 +66,7 @@ const SliderControl = ({
       onChange={(e) => onChange(parseFloat(e.target.value))}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
-      className={`w-full h-3 sm:h-1.5 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-[#2563eb] hover:accent-[#1d4ed8] transition-all touch-none`}
+      className={`w-full h-3 sm:h-1.5 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-[#2563eb] hover:accent-[#1d4ed8] transition-all`}
     />
   </div>
 );

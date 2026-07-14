@@ -548,7 +548,7 @@ const SidebarSliderControl = ({
       onChange={(e) => onChange(parseFloat(e.target.value))}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
-      className="w-full h-2 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-brand-600 touch-none"
+      className="w-full h-2 bg-surface-100 rounded-lg appearance-none cursor-pointer accent-brand-600"
     />
   </div>
 );
@@ -578,6 +578,7 @@ export default function App() {
     opacity: 0.8,
     align: 'left',
   });
+  const [blockOverrides, setBlockOverrides] = useState<{[key: string]: Partial<TextBlock>}>({});
   
   const debouncedBulkText = useDebounce(bulkText, 300);
   const debouncedMargins = useDebounce(margins, 200);
@@ -813,6 +814,26 @@ export default function App() {
     } else if (selectedIds.length > 0) {
       // Update both textBlocks and pages
       setTextBlocks(prev => prev.map(b => selectedIds.includes(b.id) ? { ...b, ...updates } : b));
+      
+      // Update blockOverrides for selected page blocks
+      const overridesToUpdate: {[key: string]: Partial<TextBlock>} = {};
+      pages.forEach(page => {
+        page.forEach(b => {
+          if (selectedIds.includes(b.id) && b.paragraphIndex !== undefined && b.lineIndex !== undefined) {
+            const key = b.wordIndex !== undefined 
+              ? `p${b.paragraphIndex}-l${b.lineIndex}-w${b.wordIndex}` 
+              : `p${b.paragraphIndex}-l${b.lineIndex}`;
+            overridesToUpdate[key] = {
+              ...(blockOverrides[key] || {}),
+              ...updates
+            };
+          }
+        });
+      });
+      if (Object.keys(overridesToUpdate).length > 0) {
+        setBlockOverrides(prev => ({ ...prev, ...overridesToUpdate }));
+      }
+
       setPages(prev => prev.map(page => page.map(b => selectedIds.includes(b.id) ? { ...b, ...updates } : b)));
     }
   };
@@ -1027,6 +1048,7 @@ export default function App() {
 
         const spaceWidth = ctx.measureText(' ').width + (template.letterSpacing || 0) + (template.wordSpacing || 0);
 
+        let paragraphIndex = 0;
         for (const para of paragraphs) {
           if (para.trim() === '') {
             currentY += lineHeightPx;
@@ -1035,11 +1057,13 @@ export default function App() {
               currentPageBlocks = [];
               currentY = 0;
             }
+            paragraphIndex++;
             continue;
           }
 
           const words = para.split(/\s+/);
           let currentLine = '';
+          let lineIndexInPara = 0;
 
           for (let i = 0; i < words.length; i++) {
             const word = words[i];
@@ -1052,43 +1076,78 @@ export default function App() {
               const { leftX, startY, width: lineWidthAtY } = getLineInfoAtY(currentY);
               
               if (moveMode === 'words') {
+                const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
+                const lineMergedTemplate = { ...template, ...lineOverride };
+                const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (lineMergedTemplate.letterSpacing || 0));
+                
+                let lineX = leftX;
+                if (lineMergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
+                else if (lineMergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+
+                let dragDeltaX = 0;
+                let dragDeltaY = 0;
+                if (lineOverride.x !== undefined) {
+                  const defaultLineX = lineX + (pageOffsets[allPages.length]?.x || 0);
+                  dragDeltaX = lineOverride.x - defaultLineX;
+                }
+                if (lineOverride.y !== undefined) {
+                  const defaultLineY = startY + (pageOffsets[allPages.length]?.y || 0);
+                  dragDeltaY = lineOverride.y - defaultLineY;
+                }
+
                 const wordsInLine = currentLine.split(' ');
                 let wordX = leftX;
-                const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (template.letterSpacing || 0));
-                
-                if (template.align === 'center') wordX += (lineWidthAtY - actualLineWidth) / 2;
-                else if (template.align === 'right') wordX += (lineWidthAtY - actualLineWidth);
+                if (lineMergedTemplate.align === 'center') wordX += (lineWidthAtY - actualLineWidth) / 2;
+                else if (lineMergedTemplate.align === 'right') wordX += (lineWidthAtY - actualLineWidth);
 
-                wordsInLine.forEach((w) => {
-                  const wWidth = ctx.measureText(w).width + (w.length * (template.letterSpacing || 0));
+                wordsInLine.forEach((w, wIdx) => {
+                  const wordOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}-w${wIdx}`] || {};
+                  const mergedWordTemplate = { ...lineMergedTemplate, ...wordOverride };
+                  const wWidth = ctx.measureText(w).width + (w.length * (mergedWordTemplate.letterSpacing || 0));
+                  
+                  const defaultWordX = wordX + dragDeltaX + (pageOffsets[allPages.length]?.x || 0);
+                  const defaultWordY = startY + dragDeltaY + (pageOffsets[allPages.length]?.y || 0);
+
                   currentPageBlocks.push({
-                    ...template,
+                    ...mergedWordTemplate,
                     id: `page-${allPages.length}-word-${currentPageBlocks.length}`,
                     text: w,
-                    x: wordX + (pageOffsets[allPages.length]?.x || 0),
-                    y: startY + (pageOffsets[allPages.length]?.y || 0),
-                    width: wWidth,
-                    rotation: 0,
+                    x: wordOverride.x !== undefined ? wordOverride.x : defaultWordX,
+                    y: wordOverride.y !== undefined ? wordOverride.y : defaultWordY,
+                    width: wordOverride.width !== undefined ? wordOverride.width : wWidth,
+                    rotation: wordOverride.rotation !== undefined ? wordOverride.rotation : (mergedWordTemplate.rotation || 0),
+                    paragraphIndex,
+                    lineIndex: lineIndexInPara,
+                    wordIndex: wIdx,
                   } as TextBlock);
                   wordX += wWidth + spaceWidth;
                 });
               } else {
-                const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (template.letterSpacing || 0));
+                const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
+                const mergedTemplate = { ...template, ...lineOverride };
+                const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (mergedTemplate.letterSpacing || 0));
+                
                 let lineX = leftX;
-                if (template.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
-                else if (template.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+                if (mergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
+                else if (mergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+
+                const defaultX = lineX + (pageOffsets[allPages.length]?.x || 0);
+                const defaultY = startY + (pageOffsets[allPages.length]?.y || 0);
 
                 currentPageBlocks.push({
-                  ...template,
+                  ...mergedTemplate,
                   id: `page-${allPages.length}-line-${currentPageBlocks.length}`,
                   text: currentLine,
-                  x: lineX + (pageOffsets[allPages.length]?.x || 0),
-                  y: startY + (pageOffsets[allPages.length]?.y || 0),
+                  x: lineOverride.x !== undefined ? lineOverride.x : defaultX,
+                  y: lineOverride.y !== undefined ? lineOverride.y : defaultY,
                   width: actualLineWidth,
-                  rotation: template.rotation || 0,
+                  rotation: lineOverride.rotation !== undefined ? lineOverride.rotation : (mergedTemplate.rotation || 0),
+                  paragraphIndex,
+                  lineIndex: lineIndexInPara,
                 } as TextBlock);
               }
               
+              lineIndexInPara++;
               currentY += lineHeightPx;
               if (currentY + lineHeightPx > usableHeight) {
                 allPages.push(currentPageBlocks);
@@ -1105,42 +1164,77 @@ export default function App() {
             const { leftX, startY, width: lineWidthAtY } = getLineInfoAtY(currentY);
             
             if (moveMode === 'words') {
+              const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
+              const lineMergedTemplate = { ...template, ...lineOverride };
+              const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (lineMergedTemplate.letterSpacing || 0));
+              
+              let lineX = leftX;
+              if (lineMergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
+              else if (lineMergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+
+              let dragDeltaX = 0;
+              let dragDeltaY = 0;
+              if (lineOverride.x !== undefined) {
+                const defaultLineX = lineX + (pageOffsets[allPages.length]?.x || 0);
+                dragDeltaX = lineOverride.x - defaultLineX;
+              }
+              if (lineOverride.y !== undefined) {
+                const defaultLineY = startY + (pageOffsets[allPages.length]?.y || 0);
+                dragDeltaY = lineOverride.y - defaultLineY;
+              }
+
               const wordsInLine = currentLine.split(' ');
               let wordX = leftX;
-              const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (template.letterSpacing || 0));
-              
-              if (template.align === 'center') wordX += (lineWidthAtY - actualLineWidth) / 2;
-              else if (template.align === 'right') wordX += (lineWidthAtY - actualLineWidth);
+              if (lineMergedTemplate.align === 'center') wordX += (lineWidthAtY - actualLineWidth) / 2;
+              else if (lineMergedTemplate.align === 'right') wordX += (lineWidthAtY - actualLineWidth);
 
-              wordsInLine.forEach((w) => {
-                const wWidth = ctx.measureText(w).width + (w.length * (template.letterSpacing || 0));
+              wordsInLine.forEach((w, wIdx) => {
+                const wordOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}-w${wIdx}`] || {};
+                const mergedWordTemplate = { ...lineMergedTemplate, ...wordOverride };
+                const wWidth = ctx.measureText(w).width + (w.length * (mergedWordTemplate.letterSpacing || 0));
+                
+                const defaultWordX = wordX + dragDeltaX + (pageOffsets[allPages.length]?.x || 0);
+                const defaultWordY = startY + dragDeltaY + (pageOffsets[allPages.length]?.y || 0);
+
                 currentPageBlocks.push({
-                  ...template,
+                  ...mergedWordTemplate,
                   id: `page-${allPages.length}-word-${currentPageBlocks.length}`,
                   text: w,
-                  x: wordX + (pageOffsets[allPages.length]?.x || 0),
-                  y: startY + (pageOffsets[allPages.length]?.y || 0),
-                  width: wWidth,
-                  rotation: template.rotation || 0,
+                  x: wordOverride.x !== undefined ? wordOverride.x : defaultWordX,
+                  y: wordOverride.y !== undefined ? wordOverride.y : defaultWordY,
+                  width: wordOverride.width !== undefined ? wordOverride.width : wWidth,
+                  rotation: wordOverride.rotation !== undefined ? wordOverride.rotation : (mergedWordTemplate.rotation || 0),
+                  paragraphIndex,
+                  lineIndex: lineIndexInPara,
+                  wordIndex: wIdx,
                 } as TextBlock);
                 wordX += wWidth + spaceWidth;
               });
             } else {
-              const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (template.letterSpacing || 0));
+              const lineOverride = blockOverrides[`p${paragraphIndex}-l${lineIndexInPara}`] || {};
+              const mergedTemplate = { ...template, ...lineOverride };
+              const actualLineWidth = ctx.measureText(currentLine).width + (currentLine.length * (mergedTemplate.letterSpacing || 0));
+              
               let lineX = leftX;
-              if (template.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
-              else if (template.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+              if (mergedTemplate.align === 'center') lineX += (lineWidthAtY - actualLineWidth) / 2;
+              else if (mergedTemplate.align === 'right') lineX += (lineWidthAtY - actualLineWidth);
+
+              const defaultX = lineX + (pageOffsets[allPages.length]?.x || 0);
+              const defaultY = startY + (pageOffsets[allPages.length]?.y || 0);
 
               currentPageBlocks.push({
-                ...template,
+                ...mergedTemplate,
                 id: `page-${allPages.length}-line-${currentPageBlocks.length}`,
                 text: currentLine,
-                x: lineX + (pageOffsets[allPages.length]?.x || 0),
-                y: startY + (pageOffsets[allPages.length]?.y || 0),
+                x: lineOverride.x !== undefined ? lineOverride.x : defaultX,
+                y: lineOverride.y !== undefined ? lineOverride.y : defaultY,
                 width: actualLineWidth,
-                rotation: template.rotation || 0,
+                rotation: lineOverride.rotation !== undefined ? lineOverride.rotation : (mergedTemplate.rotation || 0),
+                paragraphIndex,
+                lineIndex: lineIndexInPara,
               } as TextBlock);
             }
+            lineIndexInPara++;
             currentY += lineHeightPx;
           }
 
@@ -1149,6 +1243,8 @@ export default function App() {
             currentPageBlocks = [];
             currentY = 0;
           }
+          
+          paragraphIndex++;
         }
 
         if (currentPageBlocks.length > 0) {
@@ -1166,7 +1262,7 @@ export default function App() {
     };
 
     generatePages();
-  }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode === 'words', pageOffsets]);
+  }, [debouncedBulkText, debouncedBoundary, backgroundImage, imageDimensions, layoutTemplate, moveMode === 'words', pageOffsets, blockOverrides]);
 
   const resetAll = () => {
     if (backgroundImage) {
@@ -1178,6 +1274,7 @@ export default function App() {
     setBulkText('');
     setPages([]);
     setPageOffsets({});
+    setBlockOverrides({});
     toast.info("All progress cleared.");
   };
 
@@ -1490,8 +1587,45 @@ export default function App() {
                       }}
                       onChange={(newBlocks, delta) => {
                         const newPages = [...pages];
+                        const oldBlocks = pages[idx] || [];
                         newPages[idx] = newBlocks;
                         setPages(newPages);
+                        
+                        // Save any position/transform changes to blockOverrides
+                        const overridesToUpdate: {[key: string]: Partial<TextBlock>} = {};
+                        newBlocks.forEach((b, bIdx) => {
+                          if (b.paragraphIndex !== undefined && b.lineIndex !== undefined) {
+                            const oldB = oldBlocks[bIdx];
+                            if (!oldB || oldB.x !== b.x || oldB.y !== b.y || oldB.rotation !== b.rotation || oldB.fontSize !== b.fontSize || oldB.width !== b.width || oldB.fill !== b.fill || oldB.fontFamily !== b.fontFamily) {
+                              const key = b.wordIndex !== undefined 
+                                ? `p${b.paragraphIndex}-l${b.lineIndex}-w${b.wordIndex}` 
+                                : `p${b.paragraphIndex}-l${b.lineIndex}`;
+                              overridesToUpdate[key] = {
+                                ...(blockOverrides[key] || {}),
+                                x: b.x,
+                                y: b.y,
+                                rotation: b.rotation,
+                                fontSize: b.fontSize,
+                                width: b.width,
+                                fill: b.fill,
+                                fontFamily: b.fontFamily,
+                                secondaryFontFamily: b.secondaryFontFamily,
+                                isCombinedFont: b.isCombinedFont,
+                                lineHeight: b.lineHeight,
+                                letterSpacing: b.letterSpacing,
+                                wordSpacing: b.wordSpacing,
+                                opacity: b.opacity,
+                                align: b.align,
+                              };
+                            }
+                          }
+                        });
+                        if (Object.keys(overridesToUpdate).length > 0) {
+                          setBlockOverrides(prev => ({
+                            ...prev,
+                            ...overridesToUpdate
+                          }));
+                        }
                         
                         if (delta) {
                           setPageOffsets(prev => ({
@@ -2227,7 +2361,7 @@ export default function App() {
       {/* Floating Feedback Button */}
       <button 
         onClick={() => setIsFeedbackOpen(true)}
-        className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-brand-600 text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-brand-200/50 hover:scale-110 transition-all active:scale-95 group"
+        className="fixed bottom-20 lg:bottom-8 right-4 lg:right-8 z-50 w-14 h-14 bg-brand-600 text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-brand-200/50 hover:scale-110 transition-all active:scale-95 group"
       >
         <MessageSquare size={24} />
         <span className="absolute right-full mr-4 px-3 py-1.5 bg-surface-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
@@ -2235,8 +2369,41 @@ export default function App() {
         </span>
       </button>
 
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="lg:hidden shrink-0 bg-white border-t border-surface-200 flex items-center justify-around py-2 px-4 shadow-lg sticky bottom-0 z-[150]">
+        <button
+          onClick={() => setActiveMobileTab('canvas')}
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all border-none bg-transparent cursor-pointer ${
+            activeMobileTab === 'canvas' ? 'text-brand-600 font-bold' : 'text-surface-400 hover:text-surface-600'
+          }`}
+        >
+          <Eye size={20} className={activeMobileTab === 'canvas' ? 'text-brand-600' : 'text-surface-400'} />
+          <span className="text-[10px] tracking-tight">Canvas</span>
+        </button>
+
+        <button
+          onClick={() => setActiveMobileTab('text')}
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all border-none bg-transparent cursor-pointer ${
+            activeMobileTab === 'text' ? 'text-brand-600 font-bold' : 'text-surface-400 hover:text-surface-600'
+          }`}
+        >
+          <FileText size={20} className={activeMobileTab === 'text' ? 'text-brand-600' : 'text-surface-400'} />
+          <span className="text-[10px] tracking-tight">Write Text</span>
+        </button>
+
+        <button
+          onClick={() => setActiveMobileTab('settings')}
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all border-none bg-transparent cursor-pointer ${
+            activeMobileTab === 'settings' ? 'text-brand-600 font-bold' : 'text-surface-400 hover:text-surface-600'
+          }`}
+        >
+          <Settings2 size={20} className={activeMobileTab === 'settings' ? 'text-brand-600' : 'text-surface-400'} />
+          <span className="text-[10px] tracking-tight">Settings</span>
+        </button>
+      </div>
+
       {/* Footer */}
-      <footer className="bg-white border-t border-surface-200 px-6 py-3 flex items-center justify-between text-[10px] text-surface-400 font-medium uppercase tracking-widest">
+      <footer className="hidden lg:flex bg-white border-t border-surface-200 px-6 py-3 flex items-center justify-between text-[10px] text-surface-400 font-medium uppercase tracking-widest">
         <div className="flex gap-4 items-center">
           <span>© 2026 Handify.ai</span>
           <span className="hidden sm:inline">•</span>
